@@ -386,11 +386,13 @@ function Apply-RecommendedTweaks {
     )
 
     try {
+        $emptyResults = @{ Success = @(); Failed = @(); Skipped = @() }
+
         # Cargar catalogo
         $catalog = Get-TweaksCatalog -ConfigPath $ConfigPath
         if (-not $catalog) {
             Write-Log -Message "No se pudo cargar el catalogo de tweaks" -Level Error
-            return
+            return $emptyResults
         }
 
         # Recolectar todos los tweaks recomendados
@@ -405,7 +407,7 @@ function Apply-RecommendedTweaks {
 
         if ($recommendedTweaks.Count -eq 0) {
             Write-Log -Message "No hay tweaks recomendados para aplicar" -Level Info
-            return
+            return $emptyResults
         }
 
         Write-Log -Message "Aplicando $($recommendedTweaks.Count) tweaks recomendados..." -Level Info
@@ -433,9 +435,12 @@ function Apply-RecommendedTweaks {
         Write-Host ""
 
         Show-Summary -Results $results
+
+        return $results
     }
     catch {
         Write-Log -Message "Error al aplicar tweaks recomendados: $_" -Level Error
+        return @{ Success = @(); Failed = @(); Skipped = @() }
     }
 }
 

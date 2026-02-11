@@ -292,11 +292,13 @@ function Remove-RecommendedBloatware {
     )
 
     try {
+        $emptyResults = @{ Success = @(); Failed = @(); Skipped = @() }
+
         # Cargar catalogo
         $catalog = Get-BloatwareCatalog -ConfigPath $ConfigPath
         if (-not $catalog) {
             Write-Log -Message "No se pudo cargar el catalogo de bloatware" -Level Error
-            return
+            return $emptyResults
         }
 
         # Filtrar solo los recomendados
@@ -304,7 +306,7 @@ function Remove-RecommendedBloatware {
 
         if ($recommendedApps.Count -eq 0) {
             Write-Log -Message "No hay bloatware recomendado para remover" -Level Info
-            return
+            return $emptyResults
         }
 
         # Escanear cuales estan instalados
@@ -312,7 +314,7 @@ function Remove-RecommendedBloatware {
 
         if ($installedRecommended.Count -eq 0) {
             Write-Log -Message "Ninguno de los $($recommendedApps.Count) bloatware recomendados esta instalado" -Level Success
-            return
+            return $emptyResults
         }
 
         Write-Log -Message "Removiendo $($installedRecommended.Count) aplicaciones de bloatware recomendadas..." -Level Info
@@ -348,9 +350,12 @@ function Remove-RecommendedBloatware {
         Write-Host ""
 
         Show-Summary -Results $results
+
+        return $results
     }
     catch {
         Write-Log -Message "Error al remover bloatware recomendado: $_" -Level Error
+        return @{ Success = @(); Failed = @(); Skipped = @() }
     }
 }
 
