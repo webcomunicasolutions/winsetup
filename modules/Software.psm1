@@ -236,6 +236,7 @@ function Install-SoftwarePackage {
                 '--accept-source-agreements',
                 '--accept-package-agreements',
                 '--silent',
+                '--source', 'winget',
                 '--locale', $systemLocale
             )
             if ($useForce) {
@@ -253,9 +254,9 @@ function Install-SoftwarePackage {
                 return 'Success'
             }
 
-            # Hash mismatch: reintentar con --force sin gastar mas intentos
-            if ($exitCode -eq -1978335215 -and -not $useForce) {
-                Write-Log -Message "Hash no coincide para $PackageName. Reintentando con --force..." -Level Warning
+            # Hash mismatch (-1978335215) o No applicable installer (-1978335216): reintentar con --force
+            if (($exitCode -eq -1978335215 -or $exitCode -eq -1978335216) -and -not $useForce) {
+                Write-Log -Message "Error $exitCode para $PackageName. Reintentando con --force..." -Level Warning
                 $useForce = $true
                 $attempt--  # No contar este intento
                 continue
@@ -272,6 +273,13 @@ function Install-SoftwarePackage {
             Write-Log -Message "Reintentando en $RetryDelay segundos..." -Level Warning
             Start-Sleep -Seconds $RetryDelay
         }
+    }
+
+    # Fallback: si winget fallo y hay URL manual, intentar descarga directa
+    if ($ManualUrl) {
+        Write-Log -Message "winget fallo para $PackageName. Intentando descarga directa..." -Level Warning
+        $manualResult = Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote
+        return $manualResult
     }
 
     Write-Log -Message "No se pudo instalar $PackageName despues de $MaxRetries intentos" -Level Error
@@ -309,8 +317,11 @@ function Install-SoftwareList {
         }
         if ($pkg.wingetUnavailable -eq $true) {
             $installParams.WingetUnavailable = $true
+        }
+        # Pasar ManualUrl siempre (sirve como fallback si winget falla)
+        if ($pkg.manualUrl) {
             $installParams.ManualUrl = $pkg.manualUrl
-            $installParams.ManualNote = $pkg.manualNote
+            $installParams.ManualNote = if ($pkg.manualNote) { $pkg.manualNote } else { "" }
         }
         $status = Install-SoftwarePackage @installParams
 

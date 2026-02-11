@@ -384,11 +384,16 @@ function Show-Summary {
         Muestra resumen final de operaciones realizadas.
     .PARAMETER Results
         Hashtable con claves 'Success', 'Failed', 'Skipped', cada una conteniendo un array de nombres.
+    .PARAMETER Title
+        Titulo opcional para el resumen. Por defecto: "RESUMEN DE OPERACIONES".
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [hashtable]$Results
+        [hashtable]$Results,
+
+        [Parameter()]
+        [string]$Title = "RESUMEN DE OPERACIONES"
     )
 
     $successItems = if ($Results.Success) { @($Results.Success) } else { @() }
@@ -396,7 +401,7 @@ function Show-Summary {
     $skippedItems = if ($Results.Skipped) { @($Results.Skipped) } else { @() }
 
     Write-Host ""
-    Write-Header -Title "RESUMEN DE OPERACIONES"
+    Write-Header -Title $Title
 
     # Exitosos
     Write-Host "  [OK] Exitosos: $($successItems.Count)" -ForegroundColor Green
