@@ -200,7 +200,13 @@ else {
         }
     }
     else {
-        Write-Log -Message "winget no disponible, omitiendo instalacion via winget" -Level Warning
+        Write-Host ""
+        Write-Host "  !! WINGET NO DISPONIBLE !!" -ForegroundColor Red
+        Write-Host "  No se puede instalar software automaticamente." -ForegroundColor Yellow
+        Write-Host "  Instale 'App Installer' desde Microsoft Store y vuelva a ejecutar." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Log -Message "winget no disponible, omitiendo instalacion de software" -Level Warning
+        Start-Sleep -Seconds 3
     }
 
     # --- Paso 3: Aplicar tweaks recomendados ---
@@ -243,14 +249,31 @@ else {
 
 # --- Despedida ---
 Write-Host ""
-Write-ColorText "Configuracion finalizada." -Color Green
+Write-Host ""
+Write-Header -Title "PROCESO COMPLETADO"
+Write-ColorText "Toda la configuracion ha finalizado." -Color Green
+Write-Host ""
+Write-Host "  Revise el resumen de arriba para ver que se instalo/configuro." -ForegroundColor White
+Write-Host ""
+Write-Host ""
+Write-Host "  ============================================" -ForegroundColor Red
+Write-Host "    ATENCION: La siguiente pregunta reinicia" -ForegroundColor Red
+Write-Host "    el equipo. Responda N si no esta seguro." -ForegroundColor Red
+Write-Host "  ============================================" -ForegroundColor Red
 Write-Host ""
 
-if (Show-Confirmation -Message "Desea reiniciar el equipo ahora?") {
-    Write-ColorText "Reiniciando en 5 segundos..." -Color Yellow
-    Start-Sleep -Seconds 5
+if (Show-Confirmation -Message "Desea REINICIAR el equipo ahora?") {
+    Write-Host ""
+    for ($countdown = 10; $countdown -ge 1; $countdown--) {
+        Write-Host "`r  Reiniciando en $countdown segundos... (Ctrl+C para cancelar)   " -ForegroundColor Yellow -NoNewline
+        Start-Sleep -Seconds 1
+    }
+    Write-Host ""
     Restart-Computer -Force
 }
 else {
     Write-ColorText "Puede reiniciar manualmente mas tarde para aplicar todos los cambios." -Color Cyan
 }
+
+Write-Host ""
+Read-Host "Presione Enter para cerrar esta ventana"
