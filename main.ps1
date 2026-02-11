@@ -19,7 +19,7 @@ try {
     Import-Module "$ScriptRoot\modules\Core.psm1" -Force -ErrorAction Stop
     Import-Module "$ScriptRoot\modules\UI.psm1" -Force -ErrorAction Stop
     Import-Module "$ScriptRoot\modules\Software.psm1" -Force -ErrorAction Stop
-    Import-Module "$ScriptRoot\modules\Tweaks.psm1" -Force -ErrorAction Stop
+    Import-Module "$ScriptRoot\modules\Tweaks.psm1" -Force -ErrorAction Stop -DisableNameChecking
     Import-Module "$ScriptRoot\modules\Bloatware.psm1" -Force -ErrorAction Stop
     Import-Module "$ScriptRoot\modules\Backup.psm1" -Force -ErrorAction Stop
 }

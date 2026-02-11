@@ -233,7 +233,7 @@ function Initialize-Environment {
         Write-Log -Message "Archivo de log: $Script:LogFile" -Level Info
 
         # Cargar configuracion
-        $settingsPath = Join-Path $result.ProjectRoot 'config' 'settings.json'
+        $settingsPath = Join-Path (Join-Path $result.ProjectRoot 'config') 'settings.json'
         if (Test-Path $settingsPath) {
             $settingsContent = Get-Content -Path $settingsPath -Raw -Encoding UTF8
             $result.Settings = $settingsContent | ConvertFrom-Json
