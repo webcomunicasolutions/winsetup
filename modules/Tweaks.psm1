@@ -206,20 +206,27 @@ function Apply-PowerConfiguration {
             try {
                 Write-Log -Message "Ejecutando: $cmd" -Level Info
 
-                # Extraer el ejecutable y argumentos
-                $parts = $cmd -split ' ', 2
-                $exe = $parts[0]
-                $args = if ($parts.Count -gt 1) { $parts[1] } else { "" }
-
-                $process = Start-Process -FilePath $exe -ArgumentList $args `
-                    -NoNewWindow -Wait -PassThru 2>$null
-
-                if ($process.ExitCode -eq 0) {
+                # Si es un cmdlet de PowerShell (contiene - como Set-NetConnectionProfile)
+                if ($cmd -match '^\w+-\w+') {
+                    Invoke-Expression $cmd
                     Write-Log -Message "  Comando ejecutado correctamente: $cmd" -Level Info
                 }
                 else {
-                    Write-Log -Message "  Comando termino con codigo $($process.ExitCode): $cmd" -Level Warning
-                    $allOk = $false
+                    # Comando externo (powercfg, etc.)
+                    $parts = $cmd -split ' ', 2
+                    $exe = $parts[0]
+                    $cmdArgs = if ($parts.Count -gt 1) { $parts[1] } else { "" }
+
+                    $process = Start-Process -FilePath $exe -ArgumentList $cmdArgs `
+                        -NoNewWindow -Wait -PassThru 2>$null
+
+                    if ($process.ExitCode -eq 0) {
+                        Write-Log -Message "  Comando ejecutado correctamente: $cmd" -Level Info
+                    }
+                    else {
+                        Write-Log -Message "  Comando termino con codigo $($process.ExitCode): $cmd" -Level Warning
+                        $allOk = $false
+                    }
                 }
             }
             catch {

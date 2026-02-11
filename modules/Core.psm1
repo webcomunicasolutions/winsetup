@@ -167,30 +167,79 @@ function Test-WingetAvailable {
         Write-Log -Message "Winget no encontrado. Intentando instalar..." -Level Warning
     }
 
-    # Intentar instalar winget via App Installer
+    # Intentar instalar winget con sus dependencias
     try {
         $progressPreference = 'SilentlyContinue'
-        $latestUrl = 'https://aka.ms/getwinget'
-        $installerPath = Join-Path $env:TEMP 'Microsoft.DesktopAppInstaller.msixbundle'
+        $tempDir = Join-Path $env:TEMP 'WingetInstall'
+        if (-not (Test-Path $tempDir)) { New-Item -Path $tempDir -ItemType Directory -Force | Out-Null }
 
-        Write-Log -Message "Descargando winget desde $latestUrl..." -Level Info
-        Invoke-WebRequest -Uri $latestUrl -OutFile $installerPath -UseBasicParsing -ErrorAction Stop
+        # 1. Instalar VCLibs (dependencia)
+        Write-Log -Message "Descargando VCLibs (dependencia)..." -Level Info
+        $vclibsUrl = 'https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx'
+        $vclibsPath = Join-Path $tempDir 'VCLibs.appx'
+        Invoke-WebRequest -Uri $vclibsUrl -OutFile $vclibsPath -UseBasicParsing -ErrorAction Stop
+        Add-AppxPackage -Path $vclibsPath -ErrorAction SilentlyContinue
+
+        # 2. Instalar UI.Xaml (dependencia)
+        Write-Log -Message "Descargando UI.Xaml (dependencia)..." -Level Info
+        $xamlUrl = 'https://github.com/nicenemo/winget-install/raw/main/Microsoft.UI.Xaml.2.8.x64.appx'
+        $xamlPath = Join-Path $tempDir 'UIXaml.appx'
+        try {
+            Invoke-WebRequest -Uri $xamlUrl -OutFile $xamlPath -UseBasicParsing -ErrorAction Stop
+            Add-AppxPackage -Path $xamlPath -ErrorAction SilentlyContinue
+        }
+        catch {
+            Write-Log -Message "No se pudo descargar UI.Xaml, intentando alternativa..." -Level Warning
+            # Alternativa: NuGet
+            $nugetUrl = 'https://www.nuget.org/api/v2/package/Microsoft.UI.Xaml/2.8.6'
+            $nugetPath = Join-Path $tempDir 'UIXaml.zip'
+            Invoke-WebRequest -Uri $nugetUrl -OutFile $nugetPath -UseBasicParsing -ErrorAction SilentlyContinue
+            if (Test-Path $nugetPath) {
+                Expand-Archive -Path $nugetPath -DestinationPath (Join-Path $tempDir 'UIXaml') -Force
+                $xamlAppx = Get-ChildItem -Path (Join-Path $tempDir 'UIXaml') -Recurse -Filter '*.appx' |
+                    Where-Object { $_.Name -match 'x64' } | Select-Object -First 1
+                if ($xamlAppx) {
+                    Add-AppxPackage -Path $xamlAppx.FullName -ErrorAction SilentlyContinue
+                }
+            }
+        }
+
+        # 3. Instalar winget (App Installer)
+        Write-Log -Message "Descargando winget..." -Level Info
+        $wingetUrl = 'https://aka.ms/getwinget'
+        $wingetPath = Join-Path $tempDir 'AppInstaller.msixbundle'
+        Invoke-WebRequest -Uri $wingetUrl -OutFile $wingetPath -UseBasicParsing -ErrorAction Stop
 
         Write-Log -Message "Instalando winget..." -Level Info
-        Add-AppxPackage -Path $installerPath -ErrorAction Stop
+        Add-AppxPackage -Path $wingetPath -ErrorAction Stop
 
-        Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+        # Limpiar
+        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 
-        # Verificar que se instalo correctamente
-        $wingetCheck = Get-Command winget -ErrorAction Stop
+        # Refrescar PATH para encontrar winget
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+        # Verificar
+        $wingetCheck = Get-Command winget -ErrorAction SilentlyContinue
         if ($wingetCheck) {
-            Write-Log -Message "Winget instalado correctamente" -Level Success
+            $version = & winget --version 2>$null
+            Write-Log -Message "Winget instalado correctamente: $version" -Level Success
+            return $true
+        }
+
+        # Ultimo intento: buscar directamente en WindowsApps
+        $wingetExe = Resolve-Path "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue | Select-Object -Last 1
+        if ($wingetExe) {
+            Write-Log -Message "Winget encontrado en: $($wingetExe.Path)" -Level Success
+            # Agregar al PATH de la sesion
+            $wingetDir = Split-Path $wingetExe.Path -Parent
+            $env:Path += ";$wingetDir"
             return $true
         }
     }
     catch {
         Write-Log -Message "No se pudo instalar winget: $_" -Level Error
-        Write-Log -Message "Instale manualmente desde: https://aka.ms/getwinget" -Level Warning
+        Write-Log -Message "Instale manualmente: Abra Microsoft Store y busque 'App Installer'" -Level Warning
     }
 
     return $false
