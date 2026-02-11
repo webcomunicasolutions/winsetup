@@ -8,7 +8,8 @@
         { "id": "Mozilla.Firefox", "name": "Mozilla Firefox", "description": "Navegador web alternativo", "recommended": true },
         { "id": "RARLab.WinRAR", "name": "WinRAR", "description": "Compresor de archivos", "recommended": true },
         { "id": "Adobe.Acrobat.Reader.64-bit", "name": "Adobe Reader", "description": "Lector de PDF", "recommended": true },
-        { "id": "AnyDeskSoftwareGmbH.AnyDesk", "name": "AnyDesk", "description": "Acceso remoto", "recommended": true }
+        { "id": "AnyDeskSoftwareGmbH.AnyDesk", "name": "AnyDesk", "description": "Acceso remoto", "recommended": true },
+        { "id": "WireGuard.WireGuard", "name": "WireGuard", "description": "VPN rapida y segura", "recommended": true }
       ]
     },
     {
