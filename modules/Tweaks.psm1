@@ -160,12 +160,39 @@ function Apply-RegistryTweak {
                 }
 
                 # Aplicar el valor
-                Set-ItemProperty -Path $entry.path -Name $entry.name -Value $value -Type $propertyType -Force
+                Set-ItemProperty -Path $entry.path -Name $entry.name -Value $value -Type $propertyType -Force -ErrorAction Stop
                 Write-Log -Message "  Registro aplicado: $($entry.path)\$($entry.name) = $($entry.value) ($propertyType)" -Level Info
             }
             catch {
-                Write-Log -Message "  Error al aplicar registro $($entry.path)\$($entry.name): $_" -Level Error
-                $allOk = $false
+                # Fallback: intentar con reg.exe cuando PowerShell falla (ej: claves protegidas en Win11)
+                Write-Log -Message "  Set-ItemProperty fallo, intentando con reg.exe..." -Level Warning
+                try {
+                    $regPath = $entry.path -replace '^HKCU:\\', 'HKCU\' -replace '^HKLM:\\', 'HKLM\'
+                    $regType = switch ($entry.type) {
+                        'DWord'  { 'REG_DWORD' }
+                        'String' { 'REG_SZ' }
+                        'Binary' { 'REG_BINARY' }
+                        default  { 'REG_SZ' }
+                    }
+                    $regValue = $entry.value
+                    if ($entry.type -eq 'Binary') {
+                        $regValue = ($entry.value -replace ',', '')
+                    }
+                    $regName = if ($entry.name -eq '(Default)') { '/ve' } else { "/v `"$($entry.name)`"" }
+                    $regCmd = "reg add `"$regPath`" $regName /t $regType /d `"$regValue`" /f"
+                    $regOutput = cmd /c $regCmd 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Log -Message "  Registro aplicado via reg.exe: $($entry.path)\$($entry.name)" -Level Info
+                    }
+                    else {
+                        Write-Log -Message "  Error reg.exe: $regOutput" -Level Error
+                        $allOk = $false
+                    }
+                }
+                catch {
+                    Write-Log -Message "  Error al aplicar registro $($entry.path)\$($entry.name): $_" -Level Error
+                    $allOk = $false
+                }
             }
         }
 

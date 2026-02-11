@@ -16,7 +16,7 @@
       "name": "Certificados y Firma Digital",
       "description": "Software para certificados digitales y firma electronica",
       "packages": [
-        { "id": "Oracle.JavaRuntimeEnvironment", "name": "Java JRE", "description": "Runtime Java (necesario para AutoFirma)", "recommended": true, "manualUrl": "https://javadl.oracle.com/webapps/download/AutoDL?BundleId=251406_d57c5636f443436285ceaa20e1541e2c", "manualNote": "Fallback: instalador offline JRE 8" },
+        { "id": "EclipseAdoptium.Temurin.8.JRE", "name": "Java JRE 8 (Temurin)", "description": "Runtime Java (necesario para AutoFirma)", "recommended": true },
         { "id": "Gobierno.AutoFirma", "name": "AutoFirma", "description": "Firma electronica del gobierno de Espana", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://firmaelectronica.gob.es/content/dam/firmaelectronica/descargas-software/autofirma19/Autofirma64.zip", "manualNote": "Descarga directa ZIP - se extrae e instala automaticamente" },
         { "id": "FNMT.Configurador", "name": "Configurador FNMT", "description": "Configurador de certificados FNMT", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://descargas.cert.fnmt.es/Windows/Configurador_FNMT_5.1.0_64bits.exe", "manualNote": "Descarga directa del ejecutable" }
       ]
