@@ -70,6 +70,9 @@ try {
         Write-Host ""
         Start-Sleep -Seconds 1
 
+        # Permitir ejecucion de scripts en esta sesion
+        Set-ExecutionPolicy Bypass -Scope Process -Force
+
         # Ejecutar main.ps1
         & $mainScript.FullName
     }
