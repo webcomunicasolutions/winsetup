@@ -1,0 +1,353 @@
+{
+  "categories": [
+    {
+      "name": "Apariencia",
+      "description": "Configuracion visual de Windows (sin tema oscuro)",
+      "tweaks": [
+        {
+          "name": "Desactivar transparencias",
+          "description": "Quita los efectos de transparencia para mejorar fluidez",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+              "name": "EnableTransparency",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Menu contextual clasico (boton derecho)",
+          "description": "Restaura el menu contextual completo de Windows 10 al hacer clic derecho",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32",
+              "name": "(Default)",
+              "value": "",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "name": "Mostrar iconos de escritorio (Usuario, Equipo, Red)",
+          "description": "Activa los iconos clasicos en el escritorio: Este equipo, Red, carpeta del usuario",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel",
+              "name": "{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+              "value": 0,
+              "type": "DWord"
+            },
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel",
+              "name": "{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}",
+              "value": 0,
+              "type": "DWord"
+            },
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel",
+              "name": "{59031a47-3f72-44a7-89c5-5595fe6b30ee}",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Ocultar boton de busqueda en taskbar",
+          "description": "Quita la barra de busqueda de la barra de tareas",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Search",
+              "name": "SearchboxTaskbarMode",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Ocultar boton de Task View",
+          "description": "Quita el boton de vista de tareas de la taskbar",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+              "name": "ShowTaskViewButton",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Ocultar Widgets",
+          "description": "Desactiva el panel de widgets en Windows 11",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+              "name": "TaskbarDa",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Ocultar Chat de Teams en taskbar",
+          "description": "Quita el icono de chat de Teams de la barra de tareas",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+              "name": "TaskbarMn",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Reducir animaciones del sistema",
+          "description": "Reduce animaciones para que Windows se sienta mas rapido y fluido",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Control Panel\\Desktop",
+              "name": "UserPreferencesMask",
+              "value": "90,12,03,80,10,00,00,00",
+              "type": "Binary"
+            },
+            {
+              "path": "HKCU:\\Control Panel\\Desktop\\WindowMetrics",
+              "name": "MinAnimate",
+              "value": "0",
+              "type": "String"
+            },
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+              "name": "TaskbarAnimations",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Privacidad",
+      "description": "Desactivar envio de datos a Microsoft y rastreo",
+      "tweaks": [
+        {
+          "name": "Desactivar telemetria",
+          "description": "Reduce el envio de datos de diagnostico a Microsoft",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+              "name": "AllowTelemetry",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Desactivar ID de publicidad",
+          "description": "Impide el rastreo con fines publicitarios",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo",
+              "name": "Enabled",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Desactivar sugerencias en Inicio",
+          "description": "Quita las sugerencias de apps y anuncios del menu Inicio",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+              "name": "SubscribedContent-338388Enabled",
+              "value": 0,
+              "type": "DWord"
+            },
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+              "name": "SubscribedContent-310093Enabled",
+              "value": 0,
+              "type": "DWord"
+            },
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+              "name": "SilentInstalledAppsEnabled",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Desactivar experiencias personalizadas",
+          "description": "Impide que Windows personalice anuncios basados en diagnostico",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Privacy",
+              "name": "TailoredExperiencesWithDiagnosticDataEnabled",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Desactivar Cortana",
+          "description": "Desactiva Cortana completamente",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
+              "name": "AllowCortana",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Desactivar notificaciones de sugerencias",
+          "description": "Quita las notificaciones de 'sugerencias' y 'tips' de Windows",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+              "name": "SubscribedContent-338389Enabled",
+              "value": 0,
+              "type": "DWord"
+            },
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\UserProfileEngagement",
+              "name": "ScoobeSystemSettingEnabled",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Red",
+      "description": "Configuracion de red",
+      "tweaks": [
+        {
+          "name": "Establecer red como privada",
+          "description": "Configura el perfil de red actual como privado (permite compartir archivos e impresoras)",
+          "recommended": true,
+          "powerConfig": [
+            "Set-NetConnectionProfile -InterfaceAlias (Get-NetConnectionProfile | Select-Object -First 1 -ExpandProperty InterfaceAlias) -NetworkCategory Private"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Gaming",
+      "description": "Desactivar funciones de juegos",
+      "tweaks": [
+        {
+          "name": "Desactivar Game Bar",
+          "description": "Desactiva la barra de juegos de Xbox (ahorra recursos en PCs de oficina)",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\GameBar",
+              "name": "AllowAutoGameMode",
+              "value": 0,
+              "type": "DWord"
+            },
+            {
+              "path": "HKCU:\\Software\\Microsoft\\GameBar",
+              "name": "AutoGameModeEnabled",
+              "value": 0,
+              "type": "DWord"
+            },
+            {
+              "path": "HKCU:\\System\\GameConfigStore",
+              "name": "GameDVR_Enabled",
+              "value": 0,
+              "type": "DWord"
+            },
+            {
+              "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR",
+              "name": "AllowGameDVR",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rendimiento",
+      "description": "Optimizacion del sistema",
+      "tweaks": [
+        {
+          "name": "Plan de energia: Alto rendimiento",
+          "description": "Activa plan de alto rendimiento, sin suspension ni apagado de pantalla",
+          "recommended": true,
+          "powerConfig": [
+            "powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+            "powercfg /change monitor-timeout-ac 0",
+            "powercfg /change standby-timeout-ac 0",
+            "powercfg /change hibernate-timeout-ac 0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Explorador",
+      "description": "Configuracion del Explorador de Windows",
+      "tweaks": [
+        {
+          "name": "Mostrar extensiones de archivo",
+          "description": "Muestra las extensiones (.txt, .exe, .pdf, etc.)",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+              "name": "HideFileExt",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Mostrar archivos ocultos",
+          "description": "Hace visibles los archivos ocultos del sistema",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+              "name": "Hidden",
+              "value": 1,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Abrir Explorador en 'Este equipo'",
+          "description": "Al abrir Explorador muestra Este equipo en vez de Acceso rapido",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+              "name": "LaunchTo",
+              "value": 1,
+              "type": "DWord"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

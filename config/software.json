@@ -1,0 +1,31 @@
+{
+  "categories": [
+    {
+      "name": "Esenciales",
+      "description": "Software basico para cualquier PC de oficina",
+      "packages": [
+        { "id": "Google.Chrome", "name": "Google Chrome", "description": "Navegador web principal", "recommended": true },
+        { "id": "Mozilla.Firefox", "name": "Mozilla Firefox", "description": "Navegador web alternativo", "recommended": true },
+        { "id": "RARLab.WinRAR", "name": "WinRAR", "description": "Compresor de archivos", "recommended": true },
+        { "id": "Adobe.Acrobat.Reader.64-bit", "name": "Adobe Reader", "description": "Lector de PDF", "recommended": true },
+        { "id": "AnyDeskSoftwareGmbH.AnyDesk", "name": "AnyDesk", "description": "Acceso remoto", "recommended": true }
+      ]
+    },
+    {
+      "name": "Certificados y Firma Digital",
+      "description": "Software para certificados digitales y firma electronica",
+      "packages": [
+        { "id": "Oracle.JavaRuntimeEnvironment", "name": "Java JRE", "description": "Runtime Java (necesario para AutoFirma)", "recommended": true },
+        { "id": "Gobierno.AutoFirma", "name": "AutoFirma", "description": "Firma electronica del gobierno de Espana", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://firmaelectronica.gob.es/Home/Descargas.html", "manualNote": "Descargar desde la web oficial del gobierno" },
+        { "id": "FNMT.Configurador", "name": "Configurador FNMT", "description": "Configurador de certificados FNMT", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://descargas.cert.fnmt.es/Windows/Configurador_FNMT_5.1.0_64bits.exe", "manualNote": "Descarga directa del ejecutable" }
+      ]
+    },
+    {
+      "name": "Ofimatica",
+      "description": "Suite de oficina y productividad",
+      "packages": [
+        { "id": "Microsoft.Office", "name": "Microsoft Office 2021 Pro Plus", "description": "Suite ofimatica completa", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://officecdn.microsoft.com/db/492350f6-3a01-4f97-b9c0-c7c6ddf67d60/media/es-es/ProPlus2021Retail.img", "manualNote": "Descargar IMG desde CDN de Microsoft, montar y ejecutar setup.exe" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "version": "1.0.0",
+  "github": {
+    "owner": "usuario",
+    "repo": "instalacion_software",
+    "branch": "main"
+  },
+  "ui": {
+    "colors": {
+      "title": "Cyan",
+      "success": "Green",
+      "warning": "Yellow",
+      "error": "Red",
+      "info": "White",
+      "accent": "Magenta",
+      "selected": "Green",
+      "unselected": "Gray"
+    },
+    "symbols": {
+      "checked": "[X]",
+      "unchecked": "[ ]",
+      "arrow": ">>>",
+      "bullet": " - ",
+      "success": "[OK]",
+      "error": "[!!]",
+      "warning": "[??]",
+      "info": "[ii]"
+    }
+  },
+  "options": {
+    "createRestorePoint": true,
+    "backupRegistry": true,
+    "confirmDestructive": true,
+    "maxRetries": 3,
+    "retryDelaySeconds": 5,
+    "logLevel": "Info"
+  },
+  "paths": {
+    "logs": "logs",
+    "backups": "backups",
+    "config": "config",
+    "modules": "modules"
+  }
+}
