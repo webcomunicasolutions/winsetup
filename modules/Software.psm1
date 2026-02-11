@@ -142,10 +142,14 @@ function Install-SoftwarePackage {
         Write-Log -Message "Instalando $PackageName (intento $attempt de $MaxRetries)..." -Level Info
 
         try {
+            # Obtener locale del sistema (ej: es-ES)
+            $systemLocale = (Get-Culture).Name
+
             $output = & winget install --id $PackageId `
                 --accept-source-agreements `
                 --accept-package-agreements `
-                --silent 2>&1
+                --silent `
+                --locale $systemLocale 2>&1
 
             $exitCode = $LASTEXITCODE
             $outputText = $output | Out-String
