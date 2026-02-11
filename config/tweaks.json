@@ -108,6 +108,25 @@
           ]
         },
         {
+          "name": "Desactivar Noticias e intereses",
+          "description": "Quita el feed de noticias e intereses de la barra de tareas",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Feeds",
+              "name": "ShellFeedsTaskbarViewMode",
+              "value": 2,
+              "type": "DWord"
+            },
+            {
+              "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Feeds",
+              "name": "EnableFeeds",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
           "name": "Reducir animaciones del sistema",
           "description": "Reduce animaciones para que Windows se sienta mas rapido y fluido",
           "recommended": true,
@@ -216,6 +235,19 @@
           ]
         },
         {
+          "name": "Desactivar diagnosticos de aplicacion",
+          "description": "Impide que las apps accedan a informacion de diagnostico de otras apps",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\DeviceAccess\\Global\\{2297E4E2-5DBE-466D-A12B-0F8286F0D9CA}",
+              "name": "Value",
+              "value": "Deny",
+              "type": "String"
+            }
+          ]
+        },
+        {
           "name": "Desactivar notificaciones de sugerencias",
           "description": "Quita las notificaciones de 'sugerencias' y 'tips' de Windows",
           "recommended": true,
@@ -291,6 +323,25 @@
       "name": "Rendimiento",
       "description": "Optimizacion del sistema",
       "tweaks": [
+        {
+          "name": "Desactivar aplicaciones en segundo plano",
+          "description": "Impide que las apps se ejecuten en segundo plano consumiendo recursos",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications",
+              "name": "GlobalUserDisabled",
+              "value": 1,
+              "type": "DWord"
+            },
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Search",
+              "name": "BackgroundAppGlobalToggle",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
         {
           "name": "Plan de energia: Alto rendimiento",
           "description": "Activa plan de alto rendimiento, sin suspension ni apagado de pantalla",
