@@ -135,6 +135,10 @@ function Install-SoftwarePackage {
         return 'Skipped'
     }
 
+    # Obtener locale del sistema (ej: es-ES)
+    $systemLocale = (Get-Culture).Name
+    $useForce = $false
+
     # Intentar instalar con reintentos
     $attempt = 0
     while ($attempt -lt $MaxRetries) {
@@ -142,14 +146,19 @@ function Install-SoftwarePackage {
         Write-Log -Message "Instalando $PackageName (intento $attempt de $MaxRetries)..." -Level Info
 
         try {
-            # Obtener locale del sistema (ej: es-ES)
-            $systemLocale = (Get-Culture).Name
+            $wingetArgs = @(
+                'install', '--id', $PackageId,
+                '--accept-source-agreements',
+                '--accept-package-agreements',
+                '--silent',
+                '--locale', $systemLocale
+            )
+            if ($useForce) {
+                $wingetArgs += '--force'
+                Write-Log -Message "  Usando --force para forzar instalacion" -Level Info
+            }
 
-            $output = & winget install --id $PackageId `
-                --accept-source-agreements `
-                --accept-package-agreements `
-                --silent `
-                --locale $systemLocale 2>&1
+            $output = & winget @wingetArgs 2>&1
 
             $exitCode = $LASTEXITCODE
             $outputText = $output | Out-String
@@ -159,11 +168,16 @@ function Install-SoftwarePackage {
                 return 'Success'
             }
 
+            # Hash mismatch: reintentar con --force sin gastar mas intentos
+            if ($exitCode -eq -1978335215 -and -not $useForce) {
+                Write-Log -Message "Hash no coincide para $PackageName. Reintentando con --force..." -Level Warning
+                $useForce = $true
+                $attempt--  # No contar este intento
+                continue
+            }
+
             # Codigo de salida distinto de 0 pero no excepcion
             Write-Log -Message "winget retorno codigo $exitCode para $PackageName" -Level Warning
-            if ($outputText.Trim()) {
-                Write-Log -Message "Salida de winget: $($outputText.Trim())" -Level Warning
-            }
         }
         catch {
             Write-Log -Message "Excepcion al instalar $PackageName`: $_" -Level Error
