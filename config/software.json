@@ -4,7 +4,7 @@
       "name": "Esenciales",
       "description": "Software basico para cualquier PC de oficina",
       "packages": [
-        { "id": "Google.Chrome", "name": "Google Chrome", "description": "Navegador web principal", "recommended": true },
+        { "id": "Google.Chrome", "name": "Google Chrome", "description": "Navegador web principal", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi", "manualNote": "Instalador MSI enterprise directo de Google" },
         { "id": "Mozilla.Firefox", "name": "Mozilla Firefox", "description": "Navegador web alternativo", "recommended": true },
         { "id": "RARLab.WinRAR", "name": "WinRAR", "description": "Compresor de archivos", "recommended": true },
         { "id": "Adobe.Acrobat.Reader.64-bit", "name": "Adobe Reader", "description": "Lector de PDF", "recommended": true },
