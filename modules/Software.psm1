@@ -41,24 +41,38 @@ function Test-SoftwareInstalled {
     [OutputType([bool])]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$PackageId
+        [string]$PackageId,
+
+        [Parameter()]
+        [string]$PackageName = ""
     )
 
+    # Check 1: buscar por ID en winget
     try {
         $output = & winget list --id $PackageId --accept-source-agreements 2>&1
         $exitCode = $LASTEXITCODE
 
-        # winget list retorna 0 si encuentra el paquete
         if ($exitCode -eq 0 -and ($output | Out-String) -match $PackageId) {
             return $true
         }
+    }
+    catch {}
 
-        return $false
+    # Check 2: buscar por nombre (para paquetes instalados manualmente o con IDs no-winget)
+    if ($PackageName) {
+        try {
+            $output = & winget list --name "$PackageName" --accept-source-agreements 2>&1
+            $exitCode = $LASTEXITCODE
+            $outputText = $output | Out-String
+
+            if ($exitCode -eq 0 -and $outputText -match [regex]::Escape($PackageName)) {
+                return $true
+            }
+        }
+        catch {}
     }
-    catch {
-        Write-Log -Message "Error al verificar si $PackageId esta instalado: $_" -Level Warning
-        return $false
-    }
+
+    return $false
 }
 
 function Install-ManualPackage {
@@ -209,15 +223,15 @@ function Install-SoftwarePackage {
 
     Write-Log -Message "Procesando: $PackageName ($PackageId)" -Level Info
 
+    # Verificar si ya esta instalado (ANTES de descargar nada)
+    if (Test-SoftwareInstalled -PackageId $PackageId -PackageName $PackageName) {
+        Write-Log -Message "$PackageName ya esta instalado - omitiendo" -Level Info
+        return 'Skipped'
+    }
+
     # Si el paquete no esta en winget, usar descarga manual
     if ($WingetUnavailable -and $ManualUrl) {
         return Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote
-    }
-
-    # Verificar si ya esta instalado
-    if (Test-SoftwareInstalled -PackageId $PackageId) {
-        Write-Log -Message "$PackageName ya esta instalado - omitiendo" -Level Info
-        return 'Skipped'
     }
 
     # Obtener locale del sistema (ej: es-ES)
