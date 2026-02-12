@@ -90,8 +90,10 @@ function Install-ManualPackage {
 
     Write-Log -Message "Descarga directa: $PackageName" -Level Info
 
-    $tempDir = Join-Path $env:TEMP "WinSetup_$($PackageName -replace '[^a-zA-Z0-9]', '_')"
-    if (-not (Test-Path $tempDir)) { New-Item -Path $tempDir -ItemType Directory -Force | Out-Null }
+    # Descargar a C:\instaladores\ para que el usuario siempre tenga los instaladores
+    $downloadDir = 'C:\instaladores'
+    if (-not (Test-Path $downloadDir)) { New-Item -Path $downloadDir -ItemType Directory -Force | Out-Null }
+    $tempDir = $downloadDir
 
     $installSuccess = $false
 
@@ -264,12 +266,14 @@ function Install-ManualPackage {
             Write-Log -Message "Tipo de archivo no reconocido: $fileName" -Level Warning
         }
 
-        # Limpiar archivos temporales
-        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        # Limpiar solo carpetas de extraccion temporal (no los instaladores)
+        $extractDir = Join-Path $tempDir 'extracted'
+        if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue }
+
+        Write-Log -Message "Instaladores guardados en: $downloadDir" -Level Info
     }
     catch {
         Write-Log -Message "Error al descargar $PackageName`: $_" -Level Error
-        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     # Si la instalacion automatica fallo, abrir navegador como ultimo recurso
