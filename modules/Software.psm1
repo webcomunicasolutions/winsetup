@@ -93,6 +93,8 @@ function Install-ManualPackage {
     $tempDir = Join-Path $env:TEMP "WinSetup_$($PackageName -replace '[^a-zA-Z0-9]', '_')"
     if (-not (Test-Path $tempDir)) { New-Item -Path $tempDir -ItemType Directory -Force | Out-Null }
 
+    $installSuccess = $false
+
     try {
         # Extraer nombre de archivo limpio (sin query strings)
         $uri = [System.Uri]$ManualUrl
@@ -102,10 +104,16 @@ function Install-ManualPackage {
         }
         $downloadPath = Join-Path $tempDir $fileName
 
-        # Descargar archivo (sigue redirects automaticamente)
+        # --- DESCARGA ---
         Write-Log -Message "Descargando $PackageName..." -Level Info
         $ProgressPreference = 'SilentlyContinue'
         $response = Invoke-WebRequest -Uri $ManualUrl -OutFile $downloadPath -UseBasicParsing -ErrorAction Stop -PassThru
+
+        # Verificar que el archivo se descargo
+        if (-not (Test-Path $downloadPath) -or (Get-Item $downloadPath).Length -eq 0) {
+            Write-Log -Message "El archivo descargado esta vacio o no existe" -Level Error
+            throw "Descarga fallida: archivo vacio"
+        }
 
         # Detectar tipo real desde Content-Type si el nombre no tiene extension clara
         if ($response.Headers.'Content-Type' -and $fileName -notmatch '\.(msi|exe|zip|img|msix)$') {
@@ -116,99 +124,165 @@ function Install-ManualPackage {
             if ($newPath -ne $downloadPath) { Move-Item -Path $downloadPath -Destination $newPath -Force; $downloadPath = $newPath }
         }
 
-        Write-Log -Message "Descarga completada: $fileName" -Level Success
+        $fileSize = [math]::Round((Get-Item $downloadPath).Length / 1MB, 1)
+        Write-Log -Message "Descarga completada: $fileName ($fileSize MB)" -Level Success
 
-        # Determinar tipo de archivo y actuar
+        # --- INSTALACION ---
         if ($fileName -match '\.zip$') {
-            # Extraer ZIP y buscar instalador
-            Write-Log -Message "Extrayendo $fileName..." -Level Info
-            $extractDir = Join-Path $tempDir 'extracted'
-            Expand-Archive -Path $downloadPath -DestinationPath $extractDir -Force
+            # ZIP: extraer y buscar instalador
+            try {
+                Write-Log -Message "Extrayendo $fileName..." -Level Info
+                $extractDir = Join-Path $tempDir 'extracted'
+                Expand-Archive -Path $downloadPath -DestinationPath $extractDir -Force -ErrorAction Stop
 
-            # Buscar instalador (.exe o .msi) dentro del ZIP
-            $installer = Get-ChildItem -Path $extractDir -Recurse -Include '*.exe','*.msi' |
-                Where-Object { $_.Name -notmatch 'unins' } |
-                Select-Object -First 1
+                $installer = Get-ChildItem -Path $extractDir -Recurse -Include '*.exe','*.msi' |
+                    Where-Object { $_.Name -notmatch 'unins' } |
+                    Select-Object -First 1
 
-            if ($installer) {
-                Write-Log -Message "Instalador encontrado: $($installer.Name)" -Level Info
-                if ($installer.Extension -eq '.msi') {
-                    $proc = Start-Process -FilePath 'msiexec' -ArgumentList "/i `"$($installer.FullName)`" /passive /norestart" -Wait -PassThru
-                }
-                else {
-                    $proc = Start-Process -FilePath $installer.FullName -ArgumentList '/S','/silent','/VERYSILENT' -Wait -PassThru -ErrorAction SilentlyContinue
-                    if (-not $proc -or $proc.ExitCode -ne 0) {
-                        # Intentar sin flags silenciosos
-                        $proc = Start-Process -FilePath $installer.FullName -Wait -PassThru
+                if ($installer) {
+                    Write-Log -Message "Instalador encontrado: $($installer.Name)" -Level Info
+                    if ($installer.Extension -eq '.msi') {
+                        $proc = Start-Process -FilePath 'msiexec' -ArgumentList "/i `"$($installer.FullName)`" /passive /norestart" -Wait -PassThru -ErrorAction Stop
+                    }
+                    else {
+                        $proc = Start-Process -FilePath $installer.FullName -ArgumentList '/S','/silent','/VERYSILENT' -Wait -PassThru -ErrorAction SilentlyContinue
+                        if (-not $proc -or $proc.ExitCode -ne 0) {
+                            $proc = Start-Process -FilePath $installer.FullName -Wait -PassThru -ErrorAction Stop
+                        }
+                    }
+                    if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
+                        Write-Log -Message "$PackageName instalado correctamente (codigo: $($proc.ExitCode))" -Level Success
+                        $installSuccess = $true
+                    }
+                    else {
+                        Write-Log -Message "$PackageName finalizo con codigo: $($proc.ExitCode)" -Level Warning
+                        $installSuccess = $true  # Muchos instaladores usan codigos no-estandar pero instalan bien
                     }
                 }
-                Write-Log -Message "$PackageName instalado (codigo: $($proc.ExitCode))" -Level Success
+                else {
+                    Write-Log -Message "No se encontro instalador en el ZIP" -Level Error
+                }
             }
-            else {
-                Write-Log -Message "No se encontro instalador en el ZIP. Abriendo carpeta..." -Level Warning
-                Start-Process $extractDir
-                Write-Host "  Instale $PackageName manualmente desde la carpeta abierta." -ForegroundColor Yellow
-                Write-Host "  Presione Enter cuando termine..." -ForegroundColor Yellow
-                Read-Host | Out-Null
+            catch {
+                Write-Log -Message "Error al extraer/instalar desde ZIP: $_" -Level Error
             }
         }
         elseif ($fileName -match '\.exe$') {
-            # Ejecutar instalador directamente
-            Write-Log -Message "Ejecutando instalador: $fileName" -Level Info
-            $proc = Start-Process -FilePath $downloadPath -ArgumentList '/S','/silent','/VERYSILENT' -Wait -PassThru -ErrorAction SilentlyContinue
-            if (-not $proc -or $proc.ExitCode -ne 0) {
-                $proc = Start-Process -FilePath $downloadPath -Wait -PassThru
+            # EXE: ejecutar instalador
+            try {
+                Write-Log -Message "Ejecutando instalador: $fileName" -Level Info
+                $proc = Start-Process -FilePath $downloadPath -ArgumentList '/S','/silent','/VERYSILENT' -Wait -PassThru -ErrorAction SilentlyContinue
+                if (-not $proc -or $proc.ExitCode -ne 0) {
+                    Write-Log -Message "Instalacion silenciosa fallo (codigo: $($proc.ExitCode)), abriendo instalador..." -Level Warning
+                    $proc = Start-Process -FilePath $downloadPath -Wait -PassThru -ErrorAction Stop
+                }
+                if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
+                    Write-Log -Message "$PackageName instalado correctamente (codigo: $($proc.ExitCode))" -Level Success
+                    $installSuccess = $true
+                }
+                else {
+                    Write-Log -Message "$PackageName finalizo con codigo: $($proc.ExitCode)" -Level Warning
+                    $installSuccess = $true  # Asumir exito si el proceso termino sin excepcion
+                }
             }
-            Write-Log -Message "$PackageName instalado (codigo: $($proc.ExitCode))" -Level Success
+            catch {
+                Write-Log -Message "Error al ejecutar instalador EXE: $_" -Level Error
+            }
         }
         elseif ($fileName -match '\.(msi|msix|msixbundle|appx)$') {
-            Write-Log -Message "Ejecutando instalador MSI: $fileName" -Level Info
-            $proc = Start-Process -FilePath 'msiexec' -ArgumentList "/i `"$downloadPath`" /passive /norestart" -Wait -PassThru
-            Write-Log -Message "$PackageName instalado (codigo: $($proc.ExitCode))" -Level Success
+            # MSI: instalar silencioso
+            try {
+                Write-Log -Message "Ejecutando instalador MSI: $fileName" -Level Info
+                $proc = Start-Process -FilePath 'msiexec' -ArgumentList "/i `"$downloadPath`" /passive /norestart" -Wait -PassThru -ErrorAction Stop
+                if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
+                    Write-Log -Message "$PackageName instalado correctamente (codigo: $($proc.ExitCode))" -Level Success
+                    $installSuccess = $true
+                }
+                else {
+                    Write-Log -Message "$PackageName MSI fallo con codigo: $($proc.ExitCode)" -Level Error
+                }
+            }
+            catch {
+                Write-Log -Message "Error al ejecutar instalador MSI: $_" -Level Error
+            }
         }
-        elseif ($fileName -match '\.img$') {
-            # Montar imagen ISO/IMG
-            Write-Log -Message "Montando imagen: $fileName" -Level Info
-            $mountResult = Mount-DiskImage -ImagePath $downloadPath -PassThru
-            $driveLetter = ($mountResult | Get-Volume).DriveLetter
-            $setupPath = "${driveLetter}:\setup.exe"
-            if (Test-Path $setupPath) {
-                Write-Log -Message "Ejecutando setup.exe desde imagen montada" -Level Info
-                $proc = Start-Process -FilePath $setupPath -Wait -PassThru
-                Write-Log -Message "$PackageName instalado (codigo: $($proc.ExitCode))" -Level Success
+        elseif ($fileName -match '\.(img|iso)$') {
+            # IMG/ISO: montar y ejecutar setup
+            try {
+                Write-Log -Message "Montando imagen: $fileName" -Level Info
+                $mountResult = Mount-DiskImage -ImagePath $downloadPath -PassThru -ErrorAction Stop
+
+                $volume = $mountResult | Get-Volume -ErrorAction Stop
+                if (-not $volume -or -not $volume.DriveLetter) {
+                    throw "No se pudo obtener letra de unidad de la imagen montada"
+                }
+                $driveLetter = $volume.DriveLetter
+                Write-Log -Message "Imagen montada en unidad ${driveLetter}:" -Level Success
+
+                # Buscar setup.exe o instalador
+                $setupPath = "${driveLetter}:\setup.exe"
+                if (-not (Test-Path $setupPath)) {
+                    $setupPath = "${driveLetter}:\Setup.exe"
+                }
+                if (-not (Test-Path $setupPath)) {
+                    # Buscar cualquier exe en la raiz
+                    $setupFile = Get-ChildItem "${driveLetter}:\" -Filter '*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($setupFile) { $setupPath = $setupFile.FullName }
+                }
+
+                if (Test-Path $setupPath) {
+                    Write-Log -Message "Ejecutando: $setupPath" -Level Info
+                    $proc = Start-Process -FilePath $setupPath -Wait -PassThru -ErrorAction Stop
+                    if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
+                        Write-Log -Message "$PackageName instalado correctamente (codigo: $($proc.ExitCode))" -Level Success
+                    }
+                    else {
+                        Write-Log -Message "$PackageName finalizo con codigo: $($proc.ExitCode)" -Level Warning
+                    }
+                    $installSuccess = $true
+                }
+                else {
+                    Write-Log -Message "No se encontro setup.exe en la imagen. Abriendo unidad..." -Level Warning
+                    Start-Process "${driveLetter}:\"
+                    Write-Host "  Imagen montada en ${driveLetter}:\ - Instale $PackageName manualmente." -ForegroundColor Yellow
+                    Write-Host "  Presione Enter cuando termine..." -ForegroundColor Yellow
+                    Read-Host | Out-Null
+                    $installSuccess = $true
+                }
+
+                # Desmontar imagen
+                Write-Log -Message "Desmontando imagen..." -Level Info
+                Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
             }
-            else {
-                Start-Process "${driveLetter}:\"
-                Write-Host "  Imagen montada en ${driveLetter}:\ - Instale manualmente." -ForegroundColor Yellow
-                Write-Host "  Presione Enter cuando termine..." -ForegroundColor Yellow
-                Read-Host | Out-Null
+            catch {
+                Write-Log -Message "Error al montar/instalar imagen: $_" -Level Error
+                # Intentar desmontar si fallo despues de montar
+                Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
             }
-            Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
         }
         else {
-            # Tipo desconocido - abrir navegador
-            Write-Log -Message "Tipo de archivo no reconocido, abriendo en navegador..." -Level Warning
-            Start-Process $ManualUrl
-            Write-Host "  Instale $PackageName manualmente." -ForegroundColor Yellow
-            Write-Host "  Presione Enter cuando termine..." -ForegroundColor Yellow
-            Read-Host | Out-Null
+            Write-Log -Message "Tipo de archivo no reconocido: $fileName" -Level Warning
         }
 
-        # Limpiar
+        # Limpiar archivos temporales
         Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-        return 'Success'
     }
     catch {
-        Write-Log -Message "Error al descargar/instalar $PackageName`: $_" -Level Error
-        # Fallback: abrir en navegador
-        Write-Log -Message "Abriendo navegador como alternativa..." -Level Warning
+        Write-Log -Message "Error al descargar $PackageName`: $_" -Level Error
+        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    # Si la instalacion automatica fallo, abrir navegador como ultimo recurso
+    if (-not $installSuccess) {
+        Write-Log -Message "Instalacion automatica fallo. Abriendo navegador..." -Level Warning
         try { Start-Process $ManualUrl } catch {}
-        Write-Host "  Instale $PackageName manualmente." -ForegroundColor Yellow
+        Write-Host "  Instale $PackageName manualmente desde el navegador." -ForegroundColor Yellow
         Write-Host "  Presione Enter cuando termine..." -ForegroundColor Yellow
         Read-Host | Out-Null
-        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-        return 'Success'
+        return 'Failed'
     }
+
+    return 'Success'
 }
 
 function Install-SoftwarePackage {
