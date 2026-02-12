@@ -16,7 +16,7 @@
       "name": "Certificados y Firma Digital",
       "description": "Software para certificados digitales y firma electronica",
       "packages": [
-        { "id": "EclipseAdoptium.Temurin.8.JRE", "name": "Java JRE 8 (Temurin)", "description": "Runtime Java (necesario para AutoFirma)", "recommended": true },
+        { "id": "EclipseAdoptium.Temurin.8.JRE", "name": "Java JRE 8 (Temurin)", "description": "Runtime Java (necesario para AutoFirma)", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://api.adoptium.net/v3/binary/latest/8/ga/windows/x64/jre/hotspot/normal/eclipse", "manualNote": "Descarga directa desde API Adoptium - siempre ultima version" },
         { "id": "Gobierno.AutoFirma", "name": "AutoFirma", "description": "Firma electronica del gobierno de Espana", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://firmaelectronica.gob.es/content/dam/firmaelectronica/descargas-software/autofirma19/Autofirma64.zip", "manualNote": "Descarga directa ZIP - se extrae e instala automaticamente" },
         { "id": "FNMT.Configurador", "name": "Configurador FNMT", "description": "Configurador de certificados FNMT", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://descargas.cert.fnmt.es/Windows/Configurador_FNMT_5.1.0_64bits.exe", "manualNote": "Descarga directa del ejecutable" }
       ]

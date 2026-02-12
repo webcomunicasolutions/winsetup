@@ -94,13 +94,28 @@ function Install-ManualPackage {
     if (-not (Test-Path $tempDir)) { New-Item -Path $tempDir -ItemType Directory -Force | Out-Null }
 
     try {
-        $fileName = $ManualUrl -split '/' | Select-Object -Last 1
+        # Extraer nombre de archivo limpio (sin query strings)
+        $uri = [System.Uri]$ManualUrl
+        $fileName = [System.IO.Path]::GetFileName($uri.LocalPath)
+        if (-not $fileName -or $fileName -eq '/' -or -not [System.IO.Path]::HasExtension($fileName)) {
+            $fileName = "$($PackageName -replace '[^a-zA-Z0-9]', '_')_installer.exe"
+        }
         $downloadPath = Join-Path $tempDir $fileName
 
-        # Descargar archivo
-        Write-Log -Message "Descargando $PackageName desde $ManualUrl..." -Level Info
+        # Descargar archivo (sigue redirects automaticamente)
+        Write-Log -Message "Descargando $PackageName..." -Level Info
         $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri $ManualUrl -OutFile $downloadPath -UseBasicParsing -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri $ManualUrl -OutFile $downloadPath -UseBasicParsing -ErrorAction Stop -PassThru
+
+        # Detectar tipo real desde Content-Type si el nombre no tiene extension clara
+        if ($response.Headers.'Content-Type' -and $fileName -notmatch '\.(msi|exe|zip|img|msix)$') {
+            $contentType = $response.Headers.'Content-Type'
+            if ($contentType -match 'msi|x-msi') { $fileName = $fileName -replace '\.[^.]*$', '.msi'; if ($fileName -notmatch '\.msi$') { $fileName += '.msi' } }
+            elseif ($contentType -match 'zip') { $fileName = $fileName -replace '\.[^.]*$', '.zip'; if ($fileName -notmatch '\.zip$') { $fileName += '.zip' } }
+            $newPath = Join-Path $tempDir $fileName
+            if ($newPath -ne $downloadPath) { Move-Item -Path $downloadPath -Destination $newPath -Force; $downloadPath = $newPath }
+        }
+
         Write-Log -Message "Descarga completada: $fileName" -Level Success
 
         # Determinar tipo de archivo y actuar
