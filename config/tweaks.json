@@ -180,10 +180,16 @@
               "name": "Background",
               "value": "58 110 165",
               "type": "String"
+            },
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Wallpapers",
+              "name": "BackgroundType",
+              "value": 1,
+              "type": "DWord"
             }
           ],
           "powerConfig": [
-            "RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters 1,True"
+            "Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class Wallpaper{[DllImport(\"user32.dll\",CharSet=CharSet.Auto)]public static extern int SystemParametersInfo(int uAction,int uParam,string lpvParam,int fuWinIni);public static void SetSolidColor(){SystemParametersInfo(20,0,\"\",3);}}'; [Wallpaper]::SetSolidColor()"
           ]
         }
       ]
