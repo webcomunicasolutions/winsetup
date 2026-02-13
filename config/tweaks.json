@@ -91,6 +91,12 @@
               "name": "TaskbarDa",
               "value": 0,
               "type": "DWord"
+            },
+            {
+              "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Dsh",
+              "name": "AllowNewsAndInterests",
+              "value": 0,
+              "type": "DWord"
             }
           ]
         },

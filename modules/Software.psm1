@@ -207,9 +207,16 @@ function Install-ManualPackage {
                 $extractDir = Join-Path $tempDir 'extracted'
                 Expand-Archive -Path $downloadPath -DestinationPath $extractDir -Force -ErrorAction Stop
 
-                $installer = Get-ChildItem -Path $extractDir -Recurse -Include '*.exe','*.msi' |
-                    Where-Object { $_.Name -notmatch 'unins' } |
-                    Select-Object -First 1
+                # Priorizar: 1) MSI, 2) setup.exe/install.exe, 3) otros EXE (excluir utilidades)
+                $allFiles = Get-ChildItem -Path $extractDir -Recurse -Include '*.exe','*.msi' |
+                    Where-Object { $_.Name -notmatch 'unins|jabswitch|javaws|jjs|keytool|kinit|klist|ktab|orbd|pack200|policytool|rmid|rmiregistry|servertool|tnameserv' }
+                $installer = $allFiles | Where-Object { $_.Extension -eq '.msi' } | Select-Object -First 1
+                if (-not $installer) {
+                    $installer = $allFiles | Where-Object { $_.Name -match '^(setup|install|Setup|Install)' } | Select-Object -First 1
+                }
+                if (-not $installer) {
+                    $installer = $allFiles | Select-Object -First 1
+                }
 
                 if ($installer) {
                     Write-Log -Message "Instalador encontrado: $($installer.Name)" -Level Info
@@ -251,17 +258,25 @@ function Install-ManualPackage {
                 else {
                     $proc = Start-Process -FilePath $downloadPath -ArgumentList '/S','/silent','/VERYSILENT' -Wait -PassThru -ErrorAction SilentlyContinue
                 }
-                if (-not $proc -or $proc.ExitCode -ne 0) {
-                    Write-Log -Message "Instalacion silenciosa fallo (codigo: $($proc.ExitCode)), abriendo instalador..." -Level Warning
-                    $proc = Start-Process -FilePath $downloadPath -Wait -PassThru -ErrorAction Stop
-                }
-                if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
+                if ($proc -and ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010)) {
                     Write-Log -Message "$PackageName instalado correctamente (codigo: $($proc.ExitCode))" -Level Success
                     $installSuccess = $true
                 }
+                elseif ($proc) {
+                    # Silencioso fallo pero termino - avisar al usuario en vez de abrir interactivo
+                    Write-Log -Message "$PackageName: instalacion silenciosa fallo (codigo: $($proc.ExitCode))" -Level Warning
+                    Write-Host "" -ForegroundColor Yellow
+                    Write-Host "  ============================================" -ForegroundColor Yellow
+                    Write-Host "  $PackageName requiere instalacion manual" -ForegroundColor Yellow
+                    Write-Host "  El instalador esta en: $downloadPath" -ForegroundColor Yellow
+                    Write-Host "  ============================================" -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "  Presione Enter para continuar..." -ForegroundColor Yellow
+                    Read-Host | Out-Null
+                    $installSuccess = $true
+                }
                 else {
-                    Write-Log -Message "$PackageName finalizo con codigo: $($proc.ExitCode)" -Level Warning
-                    $installSuccess = $true  # Asumir exito si el proceso termino sin excepcion
+                    Write-Log -Message "$PackageName: no se pudo ejecutar el instalador" -Level Error
                 }
             }
             catch {
@@ -310,7 +325,7 @@ function Install-ManualPackage {
 
                 if (Test-Path $setupPath) {
                     Write-Log -Message "Ejecutando: $setupPath" -Level Info
-                    $proc = Start-Process -FilePath $setupPath -Wait -PassThru -ErrorAction Stop
+                    $proc = Start-Process -FilePath $setupPath -WorkingDirectory "${driveLetter}:\" -Wait -PassThru -ErrorAction Stop
                     if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
                         Write-Log -Message "$PackageName instalado correctamente (codigo: $($proc.ExitCode))" -Level Success
                         $installSuccess = $true
