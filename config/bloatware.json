@@ -61,7 +61,8 @@
     { "id": "Dropbox.Dropbox", "name": "Dropbox", "recommended": true },
     { "id": "Microsoft.OutlookForWindows", "name": "Outlook (nuevo)", "recommended": true },
     { "id": "Microsoft.549981C3F5F10", "name": "Cortana", "recommended": true },
-    { "id": "MicrosoftWindows.CrossDevice", "name": "Cross Device", "recommended": true }
+    { "id": "MicrosoftWindows.CrossDevice", "name": "Cross Device", "recommended": true },
+    { "id": "MicrosoftWindows.Client.WebExperience", "name": "Windows Widgets", "recommended": true }
   ],
   "onedrive": {
     "name": "Microsoft OneDrive",

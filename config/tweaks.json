@@ -98,6 +98,9 @@
               "value": 0,
               "type": "DWord"
             }
+          ],
+          "powerConfig": [
+            "Get-AppxPackage *MicrosoftWindows.Client.WebExperience* | Remove-AppxPackage -ErrorAction SilentlyContinue"
           ]
         },
         {
