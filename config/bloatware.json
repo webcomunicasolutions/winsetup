@@ -51,6 +51,26 @@
     { "id": "Facebook.Instagram", "name": "Instagram", "recommended": true },
     { "id": "BytedancePte.Ltd.TikTok", "name": "TikTok", "recommended": true },
     { "id": "Microsoft.MicrosoftStickyNotes", "name": "Sticky Notes", "recommended": true },
-    { "id": "Microsoft.MSPaint", "name": "Paint 3D", "recommended": true }
-  ]
+    { "id": "Microsoft.MSPaint", "name": "Paint 3D", "recommended": true },
+    { "id": "MSTeams", "name": "Microsoft Teams", "recommended": true },
+    { "id": "MicrosoftTeams", "name": "Microsoft Teams (classic)", "recommended": true },
+    { "id": "Microsoft.MicrosoftFamily", "name": "Microsoft Family", "recommended": true },
+    { "id": "MicrosoftCorporationII.MicrosoftFamily", "name": "Microsoft Family Safety", "recommended": true },
+    { "id": "Google.GooglePlayGames", "name": "Google Play Games", "recommended": true },
+    { "id": "DropboxInc.Dropbox", "name": "Dropbox (preinstalado)", "recommended": true },
+    { "id": "Dropbox.Dropbox", "name": "Dropbox", "recommended": true },
+    { "id": "Microsoft.OutlookForWindows", "name": "Outlook (nuevo)", "recommended": true },
+    { "id": "Microsoft.549981C3F5F10", "name": "Cortana", "recommended": true },
+    { "id": "MicrosoftWindows.CrossDevice", "name": "Cross Device", "recommended": true }
+  ],
+  "onedrive": {
+    "name": "Microsoft OneDrive",
+    "recommended": true,
+    "description": "OneDrive no es AppxPackage, requiere desinstalacion especial",
+    "uninstallCommands": [
+      "taskkill /f /im OneDrive.exe",
+      "%SystemRoot%\\SysWOW64\\OneDriveSetup.exe /uninstall",
+      "%SystemRoot%\\System32\\OneDriveSetup.exe /uninstall"
+    ]
+  }
 }

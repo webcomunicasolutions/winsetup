@@ -299,22 +299,34 @@ function Apply-TweakItem {
             return 'Skipped'
         }
 
+        $overallResult = 'Skipped'
+        $hasAction = $false
+
         # Tweak de registro
         if ($Tweak.registry) {
-            return Apply-RegistryTweak -TweakName $Tweak.name -RegistryEntries $Tweak.registry
+            $hasAction = $true
+            $regResult = Apply-RegistryTweak -TweakName $Tweak.name -RegistryEntries $Tweak.registry
+            $overallResult = $regResult
         }
 
-        # Tweak de configuracion de energia
+        # Tweak de configuracion de energia / comandos
         if ($Tweak.powerConfig) {
-            $result = Apply-PowerConfiguration -Commands $Tweak.powerConfig
-            if ($result -eq 'Success') {
-                Write-Log -Message "Configuracion de energia aplicada: $($Tweak.name)" -Level Success
+            $hasAction = $true
+            $cmdResult = Apply-PowerConfiguration -Commands $Tweak.powerConfig
+            if ($cmdResult -eq 'Success') {
+                Write-Log -Message "Comandos ejecutados: $($Tweak.name)" -Level Success
             }
-            return $result
+            # Si registry fue Success pero powerConfig fallo, marcar como Failed
+            if ($cmdResult -eq 'Failed') { $overallResult = 'Failed' }
+            elseif ($overallResult -eq 'Skipped') { $overallResult = $cmdResult }
         }
 
-        Write-Log -Message "Tweak sin accion definida: $($Tweak.name)" -Level Warning
-        return 'Skipped'
+        if (-not $hasAction) {
+            Write-Log -Message "Tweak sin accion definida: $($Tweak.name)" -Level Warning
+            return 'Skipped'
+        }
+
+        return $overallResult
     }
     catch {
         Write-Log -Message "Error al procesar tweak '$($Tweak.name)': $_" -Level Error
@@ -460,6 +472,20 @@ function Apply-RecommendedTweaks {
 
         Write-Progress -Activity "Aplicando tweaks recomendados" -Completed
         Write-Host ""
+
+        # Reiniciar explorer.exe para que los cambios de registro surtan efecto
+        if ($results.Success.Count -gt 0) {
+            Write-Log -Message "Reiniciando explorer.exe para aplicar cambios visuales..." -Level Info
+            try {
+                Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 2
+                Start-Process explorer.exe
+                Write-Log -Message "Explorer reiniciado correctamente" -Level Success
+            }
+            catch {
+                Write-Log -Message "No se pudo reiniciar explorer: $_" -Level Warning
+            }
+        }
 
         Show-Summary -Results $results
 

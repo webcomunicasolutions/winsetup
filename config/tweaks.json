@@ -150,6 +150,41 @@
               "type": "DWord"
             }
           ]
+        },
+        {
+          "name": "Alinear barra de tareas a la izquierda",
+          "description": "Mueve los iconos de la barra de tareas a la izquierda (estilo Windows 10)",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+              "name": "TaskbarAl",
+              "value": 0,
+              "type": "DWord"
+            }
+          ]
+        },
+        {
+          "name": "Fondo de pantalla color solido azul",
+          "description": "Establece el fondo de escritorio como color solido azul corporativo",
+          "recommended": true,
+          "registry": [
+            {
+              "path": "HKCU:\\Control Panel\\Desktop",
+              "name": "WallPaper",
+              "value": "",
+              "type": "String"
+            },
+            {
+              "path": "HKCU:\\Control Panel\\Colors",
+              "name": "Background",
+              "value": "58 110 165",
+              "type": "String"
+            }
+          ],
+          "powerConfig": [
+            "RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters 1,True"
+          ]
         }
       ]
     },

@@ -275,6 +275,68 @@ function Start-BloatwareRemoval {
     }
 }
 
+function Remove-OneDrive {
+    <#
+    .SYNOPSIS
+        Desinstala OneDrive (no es AppxPackage, requiere tratamiento especial).
+    .OUTPUTS
+        'Success', 'Failed' o 'Skipped'.
+    #>
+    [CmdletBinding()]
+    param()
+
+    try {
+        # Verificar si OneDrive esta instalado
+        $onedrive = Get-Process -Name OneDrive -ErrorAction SilentlyContinue
+        $onedriveExe = "$env:LOCALAPPDATA\Microsoft\OneDrive\OneDrive.exe"
+        if (-not $onedrive -and -not (Test-Path $onedriveExe)) {
+            Write-Log -Message "OneDrive no esta instalado - omitiendo" -Level Info
+            return 'Skipped'
+        }
+
+        Write-Log -Message "Desinstalando OneDrive..." -Level Info
+
+        # Cerrar OneDrive
+        Stop-Process -Name OneDrive -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+
+        # Intentar desinstalar
+        $uninstalled = $false
+        # Metodo 1: SysWOW64 (64-bit)
+        $setupPath = "$env:SystemRoot\SysWOW64\OneDriveSetup.exe"
+        if (Test-Path $setupPath) {
+            $proc = Start-Process -FilePath $setupPath -ArgumentList '/uninstall' -Wait -PassThru -ErrorAction SilentlyContinue
+            if ($proc.ExitCode -eq 0) { $uninstalled = $true }
+        }
+        # Metodo 2: System32
+        if (-not $uninstalled) {
+            $setupPath = "$env:SystemRoot\System32\OneDriveSetup.exe"
+            if (Test-Path $setupPath) {
+                $proc = Start-Process -FilePath $setupPath -ArgumentList '/uninstall' -Wait -PassThru -ErrorAction SilentlyContinue
+                if ($proc.ExitCode -eq 0) { $uninstalled = $true }
+            }
+        }
+        # Metodo 3: winget
+        if (-not $uninstalled) {
+            $output = & winget uninstall --id Microsoft.OneDrive --silent --accept-source-agreements 2>&1
+            if ($LASTEXITCODE -eq 0) { $uninstalled = $true }
+        }
+
+        if ($uninstalled) {
+            Write-Log -Message "OneDrive desinstalado correctamente" -Level Success
+            return 'Success'
+        }
+        else {
+            Write-Log -Message "No se pudo desinstalar OneDrive automaticamente" -Level Warning
+            return 'Failed'
+        }
+    }
+    catch {
+        Write-Log -Message "Error al desinstalar OneDrive: $_" -Level Error
+        return 'Failed'
+    }
+}
+
 function Remove-RecommendedBloatware {
     <#
     .SYNOPSIS
@@ -349,6 +411,17 @@ function Remove-RecommendedBloatware {
         Write-Progress -Activity "Removiendo bloatware recomendado" -Completed
         Write-Host ""
 
+        # Desinstalar OneDrive si esta configurado como recomendado
+        if ($catalog.onedrive -and $catalog.onedrive.recommended -eq $true) {
+            Write-Log -Message "Procesando OneDrive (desinstalacion especial)..." -Level Info
+            $onedriveResult = Remove-OneDrive
+            switch ($onedriveResult) {
+                'Success' { $results.Success += 'Microsoft OneDrive' }
+                'Failed'  { $results.Failed += 'Microsoft OneDrive' }
+                'Skipped' { $results.Skipped += 'Microsoft OneDrive' }
+            }
+        }
+
         Show-Summary -Results $results
 
         return $results
@@ -367,6 +440,7 @@ Export-ModuleMember -Function @(
     'Get-InstalledBloatware',
     'Test-ProtectedApp',
     'Remove-BloatwareApp',
+    'Remove-OneDrive',
     'Start-BloatwareRemoval',
     'Remove-RecommendedBloatware'
 )

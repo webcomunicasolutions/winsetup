@@ -85,7 +85,10 @@ function Install-ManualPackage {
         [string]$ManualUrl,
 
         [Parameter()]
-        [string]$ManualNote = ""
+        [string]$ManualNote = "",
+
+        [Parameter()]
+        [string]$SilentArgs = ""
     )
 
     Write-Log -Message "Descarga directa: $PackageName" -Level Info
@@ -101,15 +104,34 @@ function Install-ManualPackage {
         # Extraer nombre de archivo limpio (sin query strings)
         $uri = [System.Uri]$ManualUrl
         $fileName = [System.IO.Path]::GetFileName($uri.LocalPath)
+        $usedFallbackName = $false
         if (-not $fileName -or $fileName -eq '/' -or -not [System.IO.Path]::HasExtension($fileName)) {
-            $fileName = "$($PackageName -replace '[^a-zA-Z0-9]', '_')_installer.exe"
+            # NO poner extension - dejar que Content-Disposition o Content-Type la determinen
+            $fileName = "$($PackageName -replace '[^a-zA-Z0-9]', '_')_installer"
+            $usedFallbackName = $true
         }
         $downloadPath = Join-Path $tempDir $fileName
 
         # --- DESCARGA ---
         Write-Log -Message "Descargando $PackageName..." -Level Info
         $ProgressPreference = 'SilentlyContinue'
-        $response = Invoke-WebRequest -Uri $ManualUrl -OutFile $downloadPath -UseBasicParsing -ErrorAction Stop -PassThru
+        $response = $null
+
+        # Usar WebClient para archivos grandes (IMG/ISO) - Invoke-WebRequest falla con "secuencia demasiado larga"
+        if ($fileName -match '\.(img|iso)$') {
+            Write-Log -Message "Archivo grande detectado, usando WebClient..." -Level Info
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            $webClient = New-Object System.Net.WebClient
+            try {
+                $webClient.DownloadFile($ManualUrl, $downloadPath)
+            }
+            finally {
+                $webClient.Dispose()
+            }
+        }
+        else {
+            $response = Invoke-WebRequest -Uri $ManualUrl -OutFile $downloadPath -UseBasicParsing -ErrorAction Stop -PassThru
+        }
 
         # Verificar que el archivo se descargo
         if (-not (Test-Path $downloadPath) -or (Get-Item $downloadPath).Length -eq 0) {
@@ -117,13 +139,61 @@ function Install-ManualPackage {
             throw "Descarga fallida: archivo vacio"
         }
 
-        # Detectar tipo real desde Content-Type si el nombre no tiene extension clara
-        if ($response.Headers.'Content-Type' -and $fileName -notmatch '\.(msi|exe|zip|img|msix)$') {
-            $contentType = $response.Headers.'Content-Type'
-            if ($contentType -match 'msi|x-msi') { $fileName = $fileName -replace '\.[^.]*$', '.msi'; if ($fileName -notmatch '\.msi$') { $fileName += '.msi' } }
-            elseif ($contentType -match 'zip') { $fileName = $fileName -replace '\.[^.]*$', '.zip'; if ($fileName -notmatch '\.zip$') { $fileName += '.zip' } }
-            $newPath = Join-Path $tempDir $fileName
-            if ($newPath -ne $downloadPath) { Move-Item -Path $downloadPath -Destination $newPath -Force; $downloadPath = $newPath }
+        # Detectar nombre real desde Content-Disposition (ej: API Adoptium devuelve el .msi real)
+        $realNameDetected = $false
+        if ($response -and $response.Headers.'Content-Disposition') {
+            $disposition = $response.Headers.'Content-Disposition'
+            if ($disposition -match 'filename[^;=\n]*=\s*"?([^";\n]+)') {
+                $realFileName = $Matches[1].Trim()
+                if ($realFileName -and [System.IO.Path]::HasExtension($realFileName)) {
+                    $newPath = Join-Path $tempDir $realFileName
+                    if ($newPath -ne $downloadPath) {
+                        Move-Item -Path $downloadPath -Destination $newPath -Force
+                        $downloadPath = $newPath
+                        $fileName = $realFileName
+                        $realNameDetected = $true
+                        Write-Log -Message "Nombre real detectado (Content-Disposition): $fileName" -Level Info
+                    }
+                }
+            }
+        }
+
+        # Detectar tipo real desde Content-Type si aun no tiene extension clara
+        if (-not $realNameDetected -and $fileName -notmatch '\.(msi|exe|zip|img|msix)$') {
+            $contentType = if ($response -and $response.Headers.'Content-Type') { $response.Headers.'Content-Type' } else { '' }
+            $detectedExt = $null
+            if ($contentType -match 'msi|x-msi') { $detectedExt = '.msi' }
+            elseif ($contentType -match 'zip|x-zip') { $detectedExt = '.zip' }
+            elseif ($contentType -match 'octet-stream' -or -not $detectedExt) {
+                # Leer magic bytes del archivo para detectar tipo real
+                $bytes = [System.IO.File]::ReadAllBytes($downloadPath)[0..3]
+                if ($bytes.Count -ge 4) {
+                    # MSI magic: D0 CF 11 E0 (OLE Compound Document)
+                    if ($bytes[0] -eq 0xD0 -and $bytes[1] -eq 0xCF -and $bytes[2] -eq 0x11 -and $bytes[3] -eq 0xE0) { $detectedExt = '.msi' }
+                    # ZIP magic: 50 4B 03 04
+                    elseif ($bytes[0] -eq 0x50 -and $bytes[1] -eq 0x4B -and $bytes[2] -eq 0x03 -and $bytes[3] -eq 0x04) { $detectedExt = '.zip' }
+                    # EXE/DLL magic: 4D 5A (MZ)
+                    elseif ($bytes[0] -eq 0x4D -and $bytes[1] -eq 0x5A) { $detectedExt = '.exe' }
+                }
+            }
+
+            if ($detectedExt) {
+                $fileName = $fileName -replace '\.[^.]*$', ''
+                $fileName += $detectedExt
+                $newPath = Join-Path $tempDir $fileName
+                if ($newPath -ne $downloadPath) {
+                    Move-Item -Path $downloadPath -Destination $newPath -Force
+                    $downloadPath = $newPath
+                    Write-Log -Message "Tipo detectado: $fileName ($detectedExt)" -Level Info
+                }
+            }
+            elseif ($usedFallbackName) {
+                # Ultimo recurso: asumir .exe
+                $fileName += '.exe'
+                $newPath = Join-Path $tempDir $fileName
+                Move-Item -Path $downloadPath -Destination $newPath -Force
+                $downloadPath = $newPath
+            }
         }
 
         $fileSize = [math]::Round((Get-Item $downloadPath).Length / 1MB, 1)
@@ -173,7 +243,14 @@ function Install-ManualPackage {
             # EXE: ejecutar instalador
             try {
                 Write-Log -Message "Ejecutando instalador: $fileName" -Level Info
-                $proc = Start-Process -FilePath $downloadPath -ArgumentList '/S','/silent','/VERYSILENT' -Wait -PassThru -ErrorAction SilentlyContinue
+                # Usar argumentos personalizados si se proporcionaron, sino los genericos
+                if ($SilentArgs) {
+                    Write-Log -Message "  Usando argumentos personalizados: $SilentArgs" -Level Info
+                    $proc = Start-Process -FilePath $downloadPath -ArgumentList $SilentArgs -Wait -PassThru -ErrorAction SilentlyContinue
+                }
+                else {
+                    $proc = Start-Process -FilePath $downloadPath -ArgumentList '/S','/silent','/VERYSILENT' -Wait -PassThru -ErrorAction SilentlyContinue
+                }
                 if (-not $proc -or $proc.ExitCode -ne 0) {
                     Write-Log -Message "Instalacion silenciosa fallo (codigo: $($proc.ExitCode)), abriendo instalador..." -Level Warning
                     $proc = Start-Process -FilePath $downloadPath -Wait -PassThru -ErrorAction Stop
@@ -227,7 +304,6 @@ function Install-ManualPackage {
                     $setupPath = "${driveLetter}:\Setup.exe"
                 }
                 if (-not (Test-Path $setupPath)) {
-                    # Buscar cualquier exe en la raiz
                     $setupFile = Get-ChildItem "${driveLetter}:\" -Filter '*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
                     if ($setupFile) { $setupPath = $setupFile.FullName }
                 }
@@ -237,28 +313,46 @@ function Install-ManualPackage {
                     $proc = Start-Process -FilePath $setupPath -Wait -PassThru -ErrorAction Stop
                     if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
                         Write-Log -Message "$PackageName instalado correctamente (codigo: $($proc.ExitCode))" -Level Success
+                        $installSuccess = $true
+                        # Desmontar solo si la instalacion fue exitosa
+                        Write-Log -Message "Desmontando imagen..." -Level Info
+                        Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
                     }
                     else {
-                        Write-Log -Message "$PackageName finalizo con codigo: $($proc.ExitCode)" -Level Warning
+                        # Instalacion fallo: dejar imagen montada para instalacion manual
+                        Write-Log -Message "$PackageName no se pudo instalar automaticamente (codigo: $($proc.ExitCode))" -Level Warning
+                        Write-Host "" -ForegroundColor Yellow
+                        Write-Host "  ============================================" -ForegroundColor Yellow
+                        Write-Host "  $PackageName requiere instalacion manual" -ForegroundColor Yellow
+                        Write-Host "  La imagen esta montada en ${driveLetter}:\" -ForegroundColor Yellow
+                        Write-Host "  Ejecute setup.exe desde esa unidad" -ForegroundColor Yellow
+                        Write-Host "  ============================================" -ForegroundColor Yellow
+                        Write-Host ""
+                        Write-Host "  Presione Enter cuando termine la instalacion..." -ForegroundColor Yellow
+                        Read-Host | Out-Null
+                        $installSuccess = $true
+                        Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
                     }
-                    $installSuccess = $true
                 }
                 else {
-                    Write-Log -Message "No se encontro setup.exe en la imagen. Abriendo unidad..." -Level Warning
+                    # No hay setup.exe: dejar imagen montada
+                    Write-Log -Message "No se encontro setup.exe en la imagen" -Level Warning
                     Start-Process "${driveLetter}:\"
-                    Write-Host "  Imagen montada en ${driveLetter}:\ - Instale $PackageName manualmente." -ForegroundColor Yellow
-                    Write-Host "  Presione Enter cuando termine..." -ForegroundColor Yellow
+                    Write-Host "" -ForegroundColor Yellow
+                    Write-Host "  ============================================" -ForegroundColor Yellow
+                    Write-Host "  $PackageName requiere instalacion manual" -ForegroundColor Yellow
+                    Write-Host "  La imagen esta montada en ${driveLetter}:\" -ForegroundColor Yellow
+                    Write-Host "  Busque el instalador en esa unidad" -ForegroundColor Yellow
+                    Write-Host "  ============================================" -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "  Presione Enter cuando termine la instalacion..." -ForegroundColor Yellow
                     Read-Host | Out-Null
                     $installSuccess = $true
+                    Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
                 }
-
-                # Desmontar imagen
-                Write-Log -Message "Desmontando imagen..." -Level Info
-                Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
             }
             catch {
                 Write-Log -Message "Error al montar/instalar imagen: $_" -Level Error
-                # Intentar desmontar si fallo despues de montar
                 Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
             }
         }
@@ -311,7 +405,10 @@ function Install-SoftwarePackage {
         [string]$ManualUrl = "",
 
         [Parameter()]
-        [string]$ManualNote = ""
+        [string]$ManualNote = "",
+
+        [Parameter()]
+        [string]$SilentArgs = ""
     )
 
     Write-Log -Message "Procesando: $PackageName ($PackageId)" -Level Info
@@ -324,7 +421,7 @@ function Install-SoftwarePackage {
 
     # Si el paquete no esta en winget, usar descarga manual
     if ($WingetUnavailable -and $ManualUrl) {
-        return Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote
+        return Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote -SilentArgs $SilentArgs
     }
 
     # Obtener locale del sistema (ej: es-ES)
@@ -385,7 +482,7 @@ function Install-SoftwarePackage {
     # Fallback: si winget fallo y hay URL manual, intentar descarga directa
     if ($ManualUrl) {
         Write-Log -Message "winget fallo para $PackageName. Intentando descarga directa..." -Level Warning
-        $manualResult = Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote
+        $manualResult = Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote -SilentArgs $SilentArgs
         return $manualResult
     }
 
@@ -429,6 +526,9 @@ function Install-SoftwareList {
         if ($pkg.manualUrl) {
             $installParams.ManualUrl = $pkg.manualUrl
             $installParams.ManualNote = if ($pkg.manualNote) { $pkg.manualNote } else { "" }
+        }
+        if ($pkg.silentArgs) {
+            $installParams.SilentArgs = $pkg.silentArgs
         }
         $status = Install-SoftwarePackage @installParams
 
