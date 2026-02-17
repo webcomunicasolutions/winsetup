@@ -87,12 +87,6 @@
           "recommended": true,
           "registry": [
             {
-              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
-              "name": "TaskbarDa",
-              "value": 0,
-              "type": "DWord"
-            },
-            {
               "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Dsh",
               "name": "AllowNewsAndInterests",
               "value": 0,
@@ -121,12 +115,6 @@
           "description": "Quita el feed de noticias e intereses de la barra de tareas",
           "recommended": true,
           "registry": [
-            {
-              "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Feeds",
-              "name": "ShellFeedsTaskbarViewMode",
-              "value": 2,
-              "type": "DWord"
-            },
             {
               "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Feeds",
               "name": "EnableFeeds",
