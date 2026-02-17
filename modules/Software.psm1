@@ -264,7 +264,7 @@ function Install-ManualPackage {
                 }
                 elseif ($proc) {
                     # Silencioso fallo pero termino - avisar al usuario en vez de abrir interactivo
-                    Write-Log -Message "$PackageName: instalacion silenciosa fallo (codigo: $($proc.ExitCode))" -Level Warning
+                    Write-Log -Message "${PackageName}: instalacion silenciosa fallo (codigo: $($proc.ExitCode))" -Level Warning
                     Write-Host "" -ForegroundColor Yellow
                     Write-Host "  ============================================" -ForegroundColor Yellow
                     Write-Host "  $PackageName requiere instalacion manual" -ForegroundColor Yellow
@@ -276,7 +276,7 @@ function Install-ManualPackage {
                     $installSuccess = $true
                 }
                 else {
-                    Write-Log -Message "$PackageName: no se pudo ejecutar el instalador" -Level Error
+                    Write-Log -Message "${PackageName}: no se pudo ejecutar el instalador" -Level Error
                 }
             }
             catch {
