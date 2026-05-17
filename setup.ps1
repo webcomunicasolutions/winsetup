@@ -18,7 +18,9 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 # --- Si estamos en local (USB), ejecutar directamente ---
 if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "main.ps1"))) {
     Write-Host "Ejecutando desde directorio local..." -ForegroundColor Green
-    & (Join-Path $PSScriptRoot "main.ps1")
+    $mainArgs = @{}
+    if ($env:WINSETUP_PROFILE) { $mainArgs['Profile'] = $env:WINSETUP_PROFILE }
+    & (Join-Path $PSScriptRoot "main.ps1") @mainArgs
     return
 }
 
@@ -73,8 +75,10 @@ try {
         # Permitir ejecucion de scripts en esta sesion
         Set-ExecutionPolicy Bypass -Scope Process -Force
 
-        # Ejecutar main.ps1
-        & $mainScript.FullName
+        # Ejecutar main.ps1 (con perfil si se indico via variable de entorno)
+        $mainArgs = @{}
+        if ($env:WINSETUP_PROFILE) { $mainArgs['Profile'] = $env:WINSETUP_PROFILE }
+        & $mainScript.FullName @mainArgs
     }
     else {
         Write-Host "  [ERROR] No se encontro main.ps1 en la descarga" -ForegroundColor Red

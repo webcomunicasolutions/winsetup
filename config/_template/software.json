@@ -1,0 +1,45 @@
+{
+  "_comment": "PLANTILLA - Copie esta carpeta con el nombre del cliente y personalice",
+  "_instrucciones": [
+    "1. Copiar carpeta _template/ como config/<nombre-cliente>/",
+    "2. Editar este software.json con los paquetes del cliente",
+    "3. Si tweaks o bloatware son diferentes, copiarlos tambien aqui (sino se usan los default)",
+    "4. Ejecutar: .\\main.ps1 -Profile <nombre-cliente>",
+    "5. O remoto: irm <url>/setup.ps1 | iex  (con -Profile en setup.ps1)"
+  ],
+  "categories": [
+    {
+      "name": "Esenciales",
+      "description": "Software basico - ajustar segun necesidad del cliente",
+      "packages": [
+        { "id": "Google.Chrome", "name": "Google Chrome", "description": "Navegador web principal", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi", "manualNote": "Instalador MSI enterprise directo de Google" },
+        { "id": "Mozilla.Firefox", "name": "Mozilla Firefox", "description": "Navegador web alternativo", "recommended": true },
+        { "id": "RARLab.WinRAR", "name": "WinRAR", "description": "Compresor de archivos", "recommended": true },
+        { "id": "Adobe.Acrobat.Reader.64-bit", "name": "Adobe Reader", "description": "Lector de PDF", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2300820555/AcroRdrDCx642300820555_es_ES.exe", "manualNote": "Instalador offline en espanol", "silentArgs": "/sAll /msi /norestart ALLUSERS=1 EULA_ACCEPT=YES" },
+        { "id": "AnyDeskSoftwareGmbH.AnyDesk", "name": "AnyDesk", "description": "Acceso remoto", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://download.anydesk.com/AnyDesk.exe", "manualNote": "Descarga directa - siempre ultima version", "silentArgs": "--install \"C:\\Program Files (x86)\\AnyDesk\" --silent --start-with-win --create-shortcuts --create-desktop-icon" }
+      ]
+    },
+    {
+      "name": "Certificados y Firma Digital",
+      "description": "Descomentar/anadir si el cliente necesita firma electronica",
+      "packages": []
+    },
+    {
+      "name": "Ofimatica",
+      "description": "Suite de oficina - elegir UNA opcion",
+      "packages": [
+        { "id": "TheDocumentFoundation.LibreOffice", "name": "LibreOffice", "description": "Suite ofimatica gratuita y completa", "recommended": true }
+      ]
+    },
+    {
+      "name": "Comunicacion",
+      "description": "Herramientas de comunicacion - anadir segun cliente",
+      "packages": []
+    },
+    {
+      "name": "Herramientas adicionales",
+      "description": "Software extra - anadir segun necesidad",
+      "packages": []
+    }
+  ]
+}

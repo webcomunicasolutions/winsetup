@@ -5,7 +5,8 @@
 # =============================================================================
 
 param(
-    [switch]$Menu  # Usar -Menu para modo interactivo con menu
+    [switch]$Menu,     # Usar -Menu para modo interactivo con menu
+    [string]$Profile   # Perfil de cliente: carga config desde config/<Profile>/
 )
 
 # --- Determinar raiz del script ---
@@ -28,6 +29,26 @@ catch {
     Write-Host "Verifique que todos los archivos .psm1 existen en $ScriptRoot\modules\" -ForegroundColor Yellow
     Read-Host "Presione Enter para salir"
     exit 1
+}
+
+# --- Resolver perfil de configuracion ---
+$configDir = Join-Path $ScriptRoot "config"
+if ($Profile) {
+    $profileDir = Join-Path $configDir $Profile
+    if (-not (Test-Path $profileDir)) {
+        Write-Host "[ERROR] Perfil '$Profile' no encontrado en $profileDir" -ForegroundColor Red
+        Write-Host "Perfiles disponibles:" -ForegroundColor Yellow
+        Get-ChildItem -Path $configDir -Directory | Where-Object { $_.Name -ne '_template' } | ForEach-Object {
+            if (Test-Path (Join-Path $_.FullName "software.json")) {
+                Write-Host "  - $($_.Name)" -ForegroundColor White
+            }
+        }
+        Write-Host ""
+        Write-Host "Para crear uno nuevo, copie config\_template\ con el nombre del cliente." -ForegroundColor Gray
+        Read-Host "Presione Enter para salir"
+        exit 1
+    }
+    Write-Host "[PERFIL] Usando configuracion: $Profile" -ForegroundColor Magenta
 }
 
 # --- Verificar permisos de administrador ---
@@ -81,12 +102,27 @@ catch {
     Write-Log -Message "Error al leer settings.json: $_" -Level Warning
 }
 
-# --- Definir rutas de configuracion ---
+# --- Definir rutas de configuracion (perfil con fallback a default) ---
+function Resolve-ConfigPath {
+    param([string]$FileName)
+    if ($Profile) {
+        $profilePath = Join-Path $ScriptRoot "config\$Profile\$FileName"
+        if (Test-Path $profilePath) { return $profilePath }
+    }
+    return Join-Path $ScriptRoot "config\$FileName"
+}
+
 $configPaths = @{
-    Software  = Join-Path $ScriptRoot "config\software.json"
-    Tweaks    = Join-Path $ScriptRoot "config\tweaks.json"
-    Bloatware = Join-Path $ScriptRoot "config\bloatware.json"
+    Software  = Resolve-ConfigPath "software.json"
+    Tweaks    = Resolve-ConfigPath "tweaks.json"
+    Bloatware = Resolve-ConfigPath "bloatware.json"
     Backups   = Join-Path $ScriptRoot "backups"
+}
+
+if ($Profile) {
+    Write-Log -Message "Config software: $($configPaths.Software)" -Level Info
+    Write-Log -Message "Config tweaks: $($configPaths.Tweaks)" -Level Info
+    Write-Log -Message "Config bloatware: $($configPaths.Bloatware)" -Level Info
 }
 
 # Crear directorio de backups si no existe
@@ -125,7 +161,9 @@ if ($Menu) {
                     # Ejecutar todo automatico desde menu
                     Write-Header -Title "CONFIGURACION COMPLETA"
                     if (Show-Confirmation -Message "Esto instalara software, aplicara tweaks y removera bloatware. Continuar?") {
-                        & $ScriptRoot\main.ps1  # Re-ejecutar sin -Menu
+                        $relaunchArgs = @()
+                        if ($Profile) { $relaunchArgs += "-Profile"; $relaunchArgs += $Profile }
+                        & $ScriptRoot\main.ps1 @relaunchArgs
                     }
                 }
                 5 {
@@ -162,7 +200,9 @@ if ($Menu) {
 }
 else {
     # --- MODO AUTOMATICO (por defecto) ---
-    Write-Header -Title "CONFIGURACION AUTOMATICA DE WINDOWS"
+    $headerTitle = "CONFIGURACION AUTOMATICA DE WINDOWS"
+    if ($Profile) { $headerTitle = "CONFIGURACION AUTOMATICA - PERFIL: $($Profile.ToUpper())" }
+    Write-Header -Title $headerTitle
     Write-Host ""
     Write-ColorText "Se ejecutara la configuracion completa:" -Color Cyan
     Write-Host "  1. Crear punto de restauracion y backup" -ForegroundColor White
