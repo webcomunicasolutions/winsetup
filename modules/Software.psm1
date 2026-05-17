@@ -80,14 +80,25 @@ function Test-SoftwareInstalled {
     )
     if ($PackageName) {
         try {
-            $searchTerms = @($PackageName)
-            if ($PackageName -match '(\w+)\s') { $searchTerms += $Matches[1] }
+            $allInstalled = Get-ItemProperty $registryPaths -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName }
 
-            $installed = Get-ItemProperty $registryPaths -ErrorAction SilentlyContinue |
-                Where-Object { $_.DisplayName -and ($searchTerms | Where-Object { $_.DisplayName -like "*$_*" }) }
-            if ($installed) {
-                Write-Log -Message "$PackageName detectado en registro de Windows" -Level Info
-                return $true
+            foreach ($app in $allInstalled) {
+                if ($app.DisplayName -like "*$PackageName*") {
+                    Write-Log -Message "$PackageName detectado en registro: $($app.DisplayName)" -Level Info
+                    return $true
+                }
+            }
+
+            # Buscar tambien por primera palabra (ej: "Adobe" para "Adobe Reader")
+            $firstWord = ($PackageName -split '\s')[0]
+            if ($firstWord -ne $PackageName -and $firstWord.Length -ge 4) {
+                foreach ($app in $allInstalled) {
+                    if ($app.DisplayName -like "*$firstWord*") {
+                        Write-Log -Message "$PackageName detectado en registro (parcial): $($app.DisplayName)" -Level Info
+                        return $true
+                    }
+                }
             }
         }
         catch {}
