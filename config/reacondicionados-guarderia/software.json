@@ -14,7 +14,7 @@
       "name": "Ofimatica",
       "description": "Suite de oficina gratuita",
       "packages": [
-        { "id": "TheDocumentFoundation.LibreOffice", "name": "LibreOffice", "description": "Suite ofimatica gratuita y completa", "recommended": true, "manualUrl": "https://download.documentfoundation.org/libreoffice/stable/26.2.3/win/x86_64/LibreOffice_26.2.3_Win_x86-64.msi", "manualNote": "MSI oficial 64-bit en multi-idioma (incluye espanol)", "silentArgs": "/qn /norestart ALLUSERS=1" }
+        { "id": "TheDocumentFoundation.LibreOffice", "name": "LibreOffice", "description": "Suite ofimatica gratuita y completa", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://download.documentfoundation.org/libreoffice/stable/26.2.3/win/x86_64/LibreOffice_26.2.3_Win_x86-64.msi", "manualNote": "MSI oficial 64-bit en multi-idioma (incluye espanol)", "silentArgs": "/qn /norestart ALLUSERS=1" }
       ]
     }
   ]

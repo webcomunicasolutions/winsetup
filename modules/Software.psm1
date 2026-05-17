@@ -117,8 +117,8 @@ function Install-ManualPackage {
         $ProgressPreference = 'SilentlyContinue'
         $response = $null
 
-        # Usar WebClient para archivos grandes (IMG/ISO) - Invoke-WebRequest falla con "secuencia demasiado larga"
-        if ($fileName -match '\.(img|iso)$') {
+        # Usar WebClient para archivos grandes (IMG/ISO/MSI grandes) - Invoke-WebRequest falla con "secuencia demasiado larga"
+        if ($fileName -match '\.(img|iso|msi)$') {
             Write-Log -Message "Archivo grande detectado, usando WebClient..." -Level Info
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             $webClient = New-Object System.Net.WebClient
@@ -287,7 +287,9 @@ function Install-ManualPackage {
             # MSI: instalar silencioso
             try {
                 Write-Log -Message "Ejecutando instalador MSI: $fileName" -Level Info
-                $proc = Start-Process -FilePath 'msiexec' -ArgumentList "/i `"$downloadPath`" /passive /norestart" -Wait -PassThru -ErrorAction Stop
+                $msiArgs = if ($SilentArgs) { "/i `"$downloadPath`" $SilentArgs" } else { "/i `"$downloadPath`" /passive /norestart" }
+                Write-Log -Message "  msiexec $msiArgs" -Level Info
+                $proc = Start-Process -FilePath 'msiexec' -ArgumentList $msiArgs -Wait -PassThru -ErrorAction Stop
                 if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
                     Write-Log -Message "$PackageName instalado correctamente (codigo: $($proc.ExitCode))" -Level Success
                     $installSuccess = $true
