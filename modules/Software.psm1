@@ -72,6 +72,27 @@ function Test-SoftwareInstalled {
         catch {}
     }
 
+    # Check 3: buscar en registro de programas instalados (para software instalado por descarga directa)
+    $registryPaths = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    if ($PackageName) {
+        try {
+            $searchTerms = @($PackageName)
+            if ($PackageName -match '(\w+)\s') { $searchTerms += $Matches[1] }
+
+            $installed = Get-ItemProperty $registryPaths -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -and ($searchTerms | Where-Object { $_.DisplayName -like "*$_*" }) }
+            if ($installed) {
+                Write-Log -Message "$PackageName detectado en registro de Windows" -Level Info
+                return $true
+            }
+        }
+        catch {}
+    }
+
     return $false
 }
 
