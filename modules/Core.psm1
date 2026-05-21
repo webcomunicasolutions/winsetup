@@ -259,8 +259,8 @@ function Initialize-Environment {
         $result.ProjectRoot = Get-ScriptRoot
         Write-Log -Message "Raiz del proyecto: $($result.ProjectRoot)" -Level Info
 
-        # Configurar logging
-        $logsDir = Join-Path $result.ProjectRoot 'logs'
+        # Configurar logging en C:\instaladores\ (accesible siempre)
+        $logsDir = 'C:\instaladores\logs'
         if (-not (Test-Path $logsDir)) {
             New-Item -Path $logsDir -ItemType Directory -Force | Out-Null
         }
