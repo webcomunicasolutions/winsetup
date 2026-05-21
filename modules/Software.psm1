@@ -715,9 +715,17 @@ function Install-RecommendedSoftware {
         return @{ Success = @(); Failed = @(); Skipped = @() }
     }
 
-    Write-Log -Message "Instalando $($recommendedPackages.Count) paquetes recomendados..." -Level Info
+    # Mostrar menu de seleccion para confirmar/ajustar paquetes
+    $selectedPackages = Show-CheckboxList -Items $recommendedPackages -Title "SOFTWARE A INSTALAR"
 
-    $results = Install-SoftwareList -Packages $recommendedPackages -CategoryName "Recomendados"
+    if ($selectedPackages.Count -eq 0) {
+        Write-Log -Message "No se selecciono ningun paquete" -Level Warning
+        return @{ Success = @(); Failed = @(); Skipped = @() }
+    }
+
+    Write-Log -Message "Instalando $($selectedPackages.Count) paquetes seleccionados..." -Level Info
+
+    $results = Install-SoftwareList -Packages $selectedPackages -CategoryName "Seleccionados"
 
     Show-Summary -Results $results -Title "Resumen: Software Recomendado"
 
