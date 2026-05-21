@@ -83,6 +83,7 @@ function Test-SoftwareInstalled {
             $allInstalled = Get-ItemProperty $registryPaths -ErrorAction SilentlyContinue |
                 Where-Object { $_.DisplayName }
 
+            # Buscar nombre completo
             foreach ($app in $allInstalled) {
                 if ($app.DisplayName -like "*$PackageName*") {
                     Write-Log -Message "$PackageName detectado en registro: $($app.DisplayName)" -Level Info
@@ -90,11 +91,12 @@ function Test-SoftwareInstalled {
                 }
             }
 
-            # Buscar tambien por primera palabra (ej: "Adobe" para "Adobe Reader")
-            $firstWord = ($PackageName -split '\s')[0]
-            if ($firstWord -ne $PackageName -and $firstWord.Length -ge 4) {
+            # Buscar por las 2 primeras palabras juntas (ej: "Adobe Reader", "Google Chrome", "Microsoft Office")
+            $words = $PackageName -split '\s'
+            if ($words.Count -ge 2) {
+                $twoWords = "$($words[0]) $($words[1])"
                 foreach ($app in $allInstalled) {
-                    if ($app.DisplayName -like "*$firstWord*") {
+                    if ($app.DisplayName -like "*$twoWords*") {
                         Write-Log -Message "$PackageName detectado en registro (parcial): $($app.DisplayName)" -Level Info
                         return $true
                     }
