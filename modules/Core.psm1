@@ -312,6 +312,53 @@ function Initialize-Environment {
     return $result
 }
 
+function Test-InteractiveSession {
+    <#
+    .SYNOPSIS
+        Indica si hay una persona delante que pueda pulsar una tecla.
+    .DESCRIPTION
+        Devuelve $false cuando el script corre por WinRM/SSH, como tarea programada
+        o con la variable de entorno WINSETUP_UNATTENDED=1. En esos casos un
+        Read-Host cuelga el proceso para siempre (no hay quien conteste), asi que
+        hay que saberlo ANTES de pedir confirmaciones.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+
+    if ($env:WINSETUP_UNATTENDED -eq '1') { return $false }
+    if (-not [Environment]::UserInteractive) { return $false }
+    # WinRM y SSH: no hay consola donde escribir
+    if ($Host.Name -eq 'ServerRemoteHost') { return $false }
+    try { if (-not $Host.UI.RawUI) { return $false } } catch { return $false }
+    return $true
+}
+
+function Wait-UserAck {
+    <#
+    .SYNOPSIS
+        Espera a que el usuario pulse Enter, PERO SOLO si hay usuario.
+    .DESCRIPTION
+        Sustituye a los Read-Host sueltos. En sesion no interactiva no espera:
+        registra el motivo en el log y sigue, para que un despliegue desatendido
+        no se quede colgado.
+    .PARAMETER Message
+        Texto a mostrar. Si se omite, usa uno genérico.
+    #>
+    [CmdletBinding()]
+    param(
+        [string]$Message = 'Presione Enter para continuar...'
+    )
+
+    if (Test-InteractiveSession) {
+        Write-Host "  $Message" -ForegroundColor Yellow
+        Read-Host | Out-Null
+    }
+    else {
+        Write-Log -Message "Sesion no interactiva: no se espera confirmacion ($Message)" -Level Info
+    }
+}
+
 Export-ModuleMember -Function @(
     'Write-Log',
     'Test-Admin',
@@ -319,5 +366,7 @@ Export-ModuleMember -Function @(
     'Get-ScriptRoot',
     'Test-Internet',
     'Test-WingetAvailable',
-    'Initialize-Environment'
+    'Initialize-Environment',
+    'Test-InteractiveSession',
+    'Wait-UserAck'
 )

@@ -133,6 +133,8 @@ function Install-ManualPackage {
     $tempDir = $downloadDir
 
     $installSuccess = $false
+    # $true si el instalador quedo descargado en disco listo para rematarlo a mano
+    $installerReady = $false
 
     try {
         # Extraer nombre de archivo limpio (sin query strings)
@@ -297,17 +299,17 @@ function Install-ManualPackage {
                     $installSuccess = $true
                 }
                 elseif ($proc) {
-                    # Silencioso fallo pero termino - avisar al usuario en vez de abrir interactivo
-                    Write-Log -Message "${PackageName}: instalacion silenciosa fallo (codigo: $($proc.ExitCode))" -Level Warning
+                    # Silencioso fallo pero termino. NO es un exito: se queda como
+                    # fallido para que salga en el resumen final y el tecnico lo remate.
+                    Write-Log -Message "${PackageName}: instalacion silenciosa fallo (codigo: $($proc.ExitCode)). Instalador descargado en: $downloadPath" -Level Warning
                     Write-Host "" -ForegroundColor Yellow
                     Write-Host "  ============================================" -ForegroundColor Yellow
                     Write-Host "  $PackageName requiere instalacion manual" -ForegroundColor Yellow
                     Write-Host "  El instalador esta en: $downloadPath" -ForegroundColor Yellow
                     Write-Host "  ============================================" -ForegroundColor Yellow
                     Write-Host ""
-                    Write-Host "  Presione Enter para continuar..." -ForegroundColor Yellow
-                    Read-Host | Out-Null
-                    $installSuccess = $true
+                    Wait-UserAck
+                    $installerReady = $true
                 }
                 else {
                     Write-Log -Message "${PackageName}: no se pudo ejecutar el instalador" -Level Error
@@ -379,16 +381,16 @@ function Install-ManualPackage {
                         Write-Host "  Ejecute setup.exe desde esa unidad" -ForegroundColor Yellow
                         Write-Host "  ============================================" -ForegroundColor Yellow
                         Write-Host ""
-                        Write-Host "  Presione Enter cuando termine la instalacion..." -ForegroundColor Yellow
-                        Read-Host | Out-Null
-                        $installSuccess = $true
+                        Wait-UserAck -Message 'Presione Enter cuando termine la instalacion...'
+                        # Solo cuenta como instalado si habia alguien que pudiera hacerlo
+                        $installSuccess = (Test-InteractiveSession)
                         Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
                     }
                 }
                 else {
                     # No hay setup.exe: dejar imagen montada
                     Write-Log -Message "No se encontro setup.exe en la imagen" -Level Warning
-                    Start-Process "${driveLetter}:\"
+                    if (Test-InteractiveSession) { Start-Process "${driveLetter}:\" }
                     Write-Host "" -ForegroundColor Yellow
                     Write-Host "  ============================================" -ForegroundColor Yellow
                     Write-Host "  $PackageName requiere instalacion manual" -ForegroundColor Yellow
@@ -396,9 +398,8 @@ function Install-ManualPackage {
                     Write-Host "  Busque el instalador en esa unidad" -ForegroundColor Yellow
                     Write-Host "  ============================================" -ForegroundColor Yellow
                     Write-Host ""
-                    Write-Host "  Presione Enter cuando termine la instalacion..." -ForegroundColor Yellow
-                    Read-Host | Out-Null
-                    $installSuccess = $true
+                    Wait-UserAck -Message 'Presione Enter cuando termine la instalacion...'
+                    $installSuccess = (Test-InteractiveSession)
                     Dismount-DiskImage -ImagePath $downloadPath -ErrorAction SilentlyContinue
                 }
             }
@@ -421,13 +422,21 @@ function Install-ManualPackage {
         Write-Log -Message "Error al descargar $PackageName`: $_" -Level Error
     }
 
-    # Si la instalacion automatica fallo, abrir navegador como ultimo recurso
+    # Si la instalacion automatica fallo, abrir navegador como ultimo recurso.
+    # En desatendido no se abre nada (nadie lo veria) y se deja constancia en el log.
     if (-not $installSuccess) {
-        Write-Log -Message "Instalacion automatica fallo. Abriendo navegador..." -Level Warning
-        try { Start-Process $ManualUrl } catch {}
-        Write-Host "  Instale $PackageName manualmente desde el navegador." -ForegroundColor Yellow
-        Write-Host "  Presione Enter cuando termine..." -ForegroundColor Yellow
-        Read-Host | Out-Null
+        if ($installerReady) {
+            Write-Log -Message "${PackageName}: PENDIENTE de instalacion manual (instalador ya descargado)" -Level Warning
+        }
+        elseif (Test-InteractiveSession) {
+            Write-Log -Message "Instalacion automatica fallo. Abriendo navegador..." -Level Warning
+            try { Start-Process $ManualUrl } catch {}
+            Write-Host "  Instale $PackageName manualmente desde el navegador." -ForegroundColor Yellow
+            Wait-UserAck -Message 'Presione Enter cuando termine...'
+        }
+        else {
+            Write-Log -Message "${PackageName}: instalacion automatica fallo. Descarga manual: $ManualUrl" -Level Warning
+        }
         return 'Failed'
     }
 

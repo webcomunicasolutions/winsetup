@@ -27,7 +27,11 @@ try {
 catch {
     Write-Host "[ERROR] No se pudo cargar un modulo requerido: $_" -ForegroundColor Red
     Write-Host "Verifique que todos los archivos .psm1 existen en $ScriptRoot\modules\" -ForegroundColor Yellow
-    Read-Host "Presione Enter para salir"
+    # Aqui NO se puede usar Wait-UserAck: viene de Core.psm1 y justo ha fallado la
+    # carga de modulos. Se queda Read-Host, pero solo si hay alguien delante.
+    if ([Environment]::UserInteractive -and $env:WINSETUP_UNATTENDED -ne '1') {
+        Read-Host "Presione Enter para salir"
+    }
     exit 1
 }
 
@@ -45,7 +49,7 @@ if ($Profile) {
         }
         Write-Host ""
         Write-Host "Para crear uno nuevo, copie config\_template\ con el nombre del cliente." -ForegroundColor Gray
-        Read-Host "Presione Enter para salir"
+        Wait-UserAck -Message "Presione Enter para salir"
         exit 1
     }
     Write-Host "[PERFIL] Usando configuracion: $Profile" -ForegroundColor Magenta
@@ -64,13 +68,13 @@ try {
     $env = Initialize-Environment
     if (-not $env.Initialized) {
         Write-ColorText "Error critico al inicializar el entorno." -Color Red
-        Read-Host "Presione Enter para salir"
+        Wait-UserAck -Message "Presione Enter para salir"
         exit 1
     }
 }
 catch {
     Write-Host "[ERROR] Fallo la inicializacion: $_" -ForegroundColor Red
-    Read-Host "Presione Enter para salir"
+    Wait-UserAck -Message "Presione Enter para salir"
     exit 1
 }
 
@@ -175,7 +179,7 @@ if ($Menu) {
                     if ($latestLog) {
                         Write-Header -Title "LOG ACTUAL"
                         Get-Content $latestLog.FullName | Out-Host
-                        Read-Host "Presione Enter para continuar"
+                        Wait-UserAck -Message "Presione Enter para continuar"
                     }
                     else {
                         Write-ColorText "No hay logs disponibles." -Color Yellow
@@ -316,4 +320,4 @@ else {
 }
 
 Write-Host ""
-Read-Host "Presione Enter para cerrar esta ventana"
+Wait-UserAck -Message "Presione Enter para cerrar esta ventana"

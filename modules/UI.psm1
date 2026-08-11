@@ -285,8 +285,10 @@ function Show-CheckboxList {
         Write-Host " = Volver sin seleccionar" -ForegroundColor DarkGray
         Write-Host ""
 
-        $input = Read-Host "  Accion"
-        $inputUpper = $input.Trim().ToUpper()
+        # OJO: no usar $input como variable propia — es una variable AUTOMATICA de
+        # PowerShell (el enumerador del pipeline) y pisarla da comportamientos raros.
+        $respuesta = Read-Host "  Accion"
+        $inputUpper = "$respuesta".Trim().ToUpper()
 
         switch ($inputUpper) {
             "A" {
@@ -322,17 +324,22 @@ function Show-CheckboxList {
     } while (-not $done)
 
     if ($cancelled) {
-        return @()
+        return ,@()
     }
 
-    $result = @()
+    # Si se marca UNA sola casilla, PowerShell desenvolveria el array de un elemento
+    # y el consumidor recibiria el objeto suelto (su .Count no seria 1, seria el del
+    # objeto). Hay que devolver SIEMPRE un array, tenga 0, 1 o N elementos.
+    # El idiom es `return ,$array` (la coma lo envuelve): `Write-Output -NoEnumerate`
+    # NO sirve aqui, porque el retorno de la funcion vuelve a enumerar la salida.
+    $result = New-Object System.Collections.Generic.List[object]
     for ($i = 0; $i -lt $Items.Count; $i++) {
         if ($selected[$i]) {
-            $result += $Items[$i]
+            $result.Add($Items[$i])
         }
     }
 
-    return $result
+    return ,$result.ToArray()
 }
 
 function Show-Progress {

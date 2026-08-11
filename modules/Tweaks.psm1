@@ -3,6 +3,68 @@
 # Aplica tweaks de registro, configuracion de energia y personalizaciones
 # =============================================================================
 
+# Cmdlets que los tweaks del JSON PUEDEN usar. Todo lo que no este aqui se
+# rechaza sin ejecutarlo: el config es de confianza, pero un fichero de config no
+# deberia ser una via para ejecutar cualquier cosa como administrador.
+# Si un tweak nuevo necesita otro cmdlet, se anade aqui a proposito.
+$script:AllowedTweakCommands = @(
+    'Add-Type',
+    'Disable-NetAdapterBinding', 'Enable-NetAdapterBinding',
+    'Disable-ScheduledTask', 'Enable-ScheduledTask', 'Unregister-ScheduledTask',
+    'ForEach-Object', 'Where-Object', 'Select-Object', 'Sort-Object',
+    'Get-AppxPackage', 'Remove-AppxPackage',
+    'Get-AppxProvisionedPackage', 'Remove-AppxProvisionedPackage',
+    'Get-Item', 'Get-ItemProperty', 'Set-ItemProperty', 'New-ItemProperty',
+    'New-Item', 'Remove-Item', 'Remove-ItemProperty', 'Test-Path',
+    'Get-NetAdapter', 'Get-NetConnectionProfile', 'Set-NetConnectionProfile',
+    'Get-Service', 'Set-Service', 'Start-Service', 'Stop-Service',
+    'Get-WindowsOptionalFeature', 'Disable-WindowsOptionalFeature',
+    'Out-Null', 'Set-TimeZone', 'Set-Culture', 'Set-WinSystemLocale',
+    'Set-MpPreference', 'Set-ExecutionPolicy'
+)
+
+function Get-DisallowedCommands {
+    <#
+    .SYNOPSIS
+        Devuelve los comandos de un texto de PowerShell que NO estan en la allowlist.
+    .DESCRIPTION
+        Usa el parser de PowerShell (no expresiones regulares) para sacar todos los
+        comandos del texto, incluidos los de dentro de pipelines, bloques y
+        subexpresiones. Devuelve un array vacio si todo esta permitido.
+    .PARAMETER CommandText
+        Texto del comando tal y como viene del JSON de tweaks.
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CommandText
+    )
+
+    $errs = $null
+    $tokens = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseInput(
+        $CommandText, [ref]$tokens, [ref]$errs)
+
+    if ($errs -and $errs.Count -gt 0) {
+        return @("<error de sintaxis: $($errs[0].Message)>")
+    }
+
+    $comandos = $ast.FindAll(
+        { param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true)
+
+    $malos = New-Object System.Collections.Generic.List[string]
+    foreach ($c in $comandos) {
+        $nombre = $c.GetCommandName()
+        if (-not $nombre) {
+            $malos.Add('<comando dinamico>')   # p.ej. & $var: no se puede validar
+            continue
+        }
+        if ($script:AllowedTweakCommands -notcontains $nombre) { $malos.Add($nombre) }
+    }
+    return $malos.ToArray()
+}
+
 function Get-TweaksCatalog {
     <#
     .SYNOPSIS
@@ -235,8 +297,26 @@ function Apply-PowerConfiguration {
 
                 # Si es un cmdlet de PowerShell (contiene - como Set-NetConnectionProfile)
                 if ($cmd -match '^\w+-\w+') {
-                    Invoke-Expression $cmd
-                    Write-Log -Message "  Comando ejecutado correctamente: $cmd" -Level Info
+                    # Antes de ejecutar un string venido del JSON se comprueba con el
+                    # parser que TODOS los comandos del pipeline estan en la allowlist,
+                    # para que un config manipulado no pueda ejecutar cualquier cosa
+                    # como administrador. Ver $script:AllowedTweakCommands.
+                    $noPermitidos = Get-DisallowedCommands -CommandText $cmd
+                    if ($noPermitidos.Count -gt 0) {
+                        Write-Log -Message "  RECHAZADO por seguridad (comando no permitido: $($noPermitidos -join ', ')): $cmd" -Level Error
+                        $allOk = $false
+                        continue
+                    }
+
+                    $errores = @()
+                    & ([scriptblock]::Create($cmd)) -ErrorVariable errores -ErrorAction SilentlyContinue | Out-Null
+                    if ($errores.Count -gt 0) {
+                        Write-Log -Message "  Comando devolvio errores: $cmd :: $($errores[0])" -Level Warning
+                        $allOk = $false
+                    }
+                    else {
+                        Write-Log -Message "  Comando ejecutado correctamente: $cmd" -Level Info
+                    }
                 }
                 else {
                     # Comando externo (powercfg, etc.)
@@ -501,6 +581,7 @@ function Apply-RecommendedTweaks {
 # Exportar funciones publicas
 # =============================================================================
 Export-ModuleMember -Function @(
+    'Get-DisallowedCommands',
     'Get-TweaksCatalog',
     'Backup-RegistryKey',
     'Apply-RegistryTweak',
