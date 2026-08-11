@@ -1,0 +1,136 @@
+{
+  "categories": [
+    {
+      "name": "Servidor - Sistema",
+      "description": "Ajustes de maquina para Windows Server RDS (HKLM, afectan a todos)",
+      "tweaks": [
+        {
+          "name": "Energia: alto rendimiento, sin suspension, sin hibernacion",
+          "description": "Un servidor no se duerme. Libera ademas el hiberfil.sys del disco",
+          "recommended": true,
+          "powerConfig": [
+            "powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+            "powercfg /change standby-timeout-ac 0",
+            "powercfg /change monitor-timeout-ac 15",
+            "powercfg /change disk-timeout-ac 0",
+            "powercfg /h off"
+          ]
+        },
+        {
+          "name": "Server Manager no se abre al iniciar sesion",
+          "description": "Quita el panel que sale solo en cada logon de admin",
+          "recommended": true,
+          "registry": [
+            { "path": "HKLM:\\SOFTWARE\\Microsoft\\ServerManager", "name": "DoNotOpenServerManagerAtLogon", "value": 1, "type": "DWord" }
+          ]
+        },
+        {
+          "name": "Windows Update programado (domingos 04:00 + reinicio)",
+          "description": "Parches automaticos en ventana nocturna de domingo, con reinicio forzado 15 min despues",
+          "recommended": true,
+          "registry": [
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU", "name": "NoAutoUpdate", "value": 0, "type": "DWord" },
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU", "name": "AUOptions", "value": 4, "type": "DWord" },
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU", "name": "ScheduledInstallDay", "value": 1, "type": "DWord" },
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU", "name": "ScheduledInstallTime", "value": 4, "type": "DWord" },
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU", "name": "AlwaysAutoRebootAtScheduledTime", "value": 1, "type": "DWord" },
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU", "name": "AlwaysAutoRebootAtScheduledTimeMinutes", "value": 15, "type": "DWord" }
+          ]
+        },
+        {
+          "name": "Privacidad de maquina: telemetria minima y sin publicidad",
+          "description": "Telemetria a nivel requerido, ID publicidad fuera, apps en segundo plano bloqueadas por politica",
+          "recommended": true,
+          "registry": [
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "AllowTelemetry", "value": 1, "type": "DWord" },
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AdvertisingInfo", "name": "DisabledByGroupPolicy", "value": 1, "type": "DWord" },
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppPrivacy", "name": "LetAppsRunInBackground", "value": 2, "type": "DWord" }
+          ]
+        },
+        {
+          "name": "Sin pantalla de privacidad en el primer logon",
+          "description": "Los usuarios nuevos (puestos RDS) no ven el asistente de 'enviar datos a Microsoft'",
+          "recommended": true,
+          "registry": [
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\OOBE", "name": "DisablePrivacyExperience", "value": 1, "type": "DWord" }
+          ]
+        },
+        {
+          "name": "Hardening ligero: LLMNR fuera + minivolcado",
+          "description": "Desactiva resolucion multicast (spoofing LAN) y deja el crash dump en minimo",
+          "recommended": true,
+          "registry": [
+            { "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient", "name": "EnableMulticast", "value": 0, "type": "DWord" },
+            { "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CrashControl", "name": "CrashDumpEnabled", "value": 3, "type": "DWord" }
+          ]
+        },
+        {
+          "name": "NTP espanol",
+          "description": "Sincronizacion horaria contra es.pool.ntp.org",
+          "recommended": true,
+          "powerConfig": [
+            "w32tm /config /manualpeerlist:\"es.pool.ntp.org time.windows.com\" /syncfromflags:manual /update",
+            "w32tm /resync"
+          ]
+        },
+        {
+          "name": "Red como privada",
+          "description": "Perfil de red Privado (el firewall de Server viene clavado en Publico)",
+          "recommended": true,
+          "powerConfig": [
+            "Get-NetConnectionProfile | Set-NetConnectionProfile -NetworkCategory Private"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Servidor - Perfil por defecto (usuarios RDS futuros)",
+      "description": "Escribe los tweaks ligeros en C:\\Users\\Default para que TODOS los usuarios nuevos los hereden. OJO: si se interrumpe, el hive queda montado y los perfiles nuevos FALLAN al crearse (visto en FERVET 08/2026; se arregla con reg unload HKU\\DefUser o reiniciando)",
+      "tweaks": [
+        {
+          "name": "Usuarios RDS ligeros de serie",
+          "description": "Menu contextual clasico, extensiones y ocultos visibles, Explorador en Este equipo, sin transparencias ni animaciones, taskbar izquierda sin busqueda/TaskView, iconos clasicos, sin sugerencias ni contenido promocionado",
+          "recommended": true,
+          "powerConfig": [
+            "reg load HKU\\DefUser C:\\Users\\Default\\NTUSER.DAT",
+            "reg add \"HKU\\DefUser\\Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32\" /ve /d \"\" /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v HideFileExt /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v Hidden /t REG_DWORD /d 1 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v LaunchTo /t REG_DWORD /d 1 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v ShowTaskViewButton /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v TaskbarAl /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v TaskbarAnimations /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v Start_IrisRecommendations /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Search\" /v SearchboxTaskbarMode /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize\" /v EnableTransparency /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\ClassicStartMenu\" /v \"{20D04FE0-3AEA-1069-A2D8-08002B30309D}\" /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\ClassicStartMenu\" /v \"{59031a47-3f72-44a7-89c5-5595fe6b30ee}\" /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\ClassicStartMenu\" /v \"{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}\" /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Control Panel\\Desktop\\WindowMetrics\" /v MinAnimate /t REG_SZ /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager\" /v SubscribedContent-338389Enabled /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager\" /v SystemPaneSuggestionsEnabled /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager\" /v SilentInstalledAppsEnabled /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo\" /v Enabled /t REG_DWORD /d 0 /f",
+            "reg add \"HKU\\DefUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Privacy\" /v TailoredExperiencesWithDiagnosticDataEnabled /t REG_DWORD /d 0 /f",
+            "reg unload HKU\\DefUser"
+          ]
+        },
+        {
+          "name": "Wallpaper corporativo del cliente",
+          "description": "Dejar el JPG en C:\\ProgramData\\<CLIENTE>\\wallpaper.jpg y apuntar el perfil default (reg add HKU\\DefUser\\Control Panel\\Desktop /v Wallpaper). Ver caso FERVET",
+          "info": true
+        }
+      ]
+    },
+    {
+      "name": "Servidor - Recordatorios (no automatizables)",
+      "description": "Cosas que hay que hacer a mano en cada servidor nuevo",
+      "tweaks": [
+        { "name": "BIOS Gigabyte: desactivar 'APP Center Download & Install'", "description": "Si no, la placa reinstala su bloatware (GCC/RGB) en cada arranque. Y poner 'AC BACK' en 'Always On' para que arranque solo tras un corte de luz", "info": true },
+        { "name": "Bloatware GIGABYTE: desinstalar por GUI", "description": "Sus uninst.exe FINGEN exito con /S y no desinstalan nada (verificado FERVET 08/2026). Hay que quitarlos desde Configuracion > Aplicaciones", "info": true },
+        { "name": "WireGuard: importar tuneles desde la GUI", "description": "Con /installtunnelservice funcionan pero NO se ven en la app. Importar desde la ventana de WireGuard para tener el punto verde y gestion visual", "info": true },
+        { "name": "winget en desatendido NO funciona", "description": "En sesiones WinRM/no interactivas winget da 0x8a15000f aunque este instalado. Usar los manualUrl de software.json (por eso este perfil los lleva todos)", "info": true }
+      ]
+    }
+  ]
+}

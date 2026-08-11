@@ -1,0 +1,32 @@
+{
+  "categories": [
+    {
+      "name": "Esenciales servidor",
+      "description": "Software base para un Windows Server RDS de cliente (sin Office: su licencia RDS se decide aparte)",
+      "packages": [
+        { "id": "Google.Chrome", "name": "Google Chrome", "description": "Navegador web principal", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi", "manualNote": "Instalador MSI enterprise directo de Google" },
+        { "id": "Mozilla.Firefox", "name": "Mozilla Firefox", "description": "Navegador web alternativo", "recommended": true, "manualUrl": "https://download.mozilla.org/?product=firefox-msi-latest-ssl&os=win64&lang=es-ES", "manualNote": "MSI enterprise es-ES, siempre ultima version. Fallback necesario: winget falla en sesiones no interactivas (WinRM/desatendido, error 0x8a15000f - visto en FERVET 08/2026)" },
+        { "id": "RARLab.WinRAR", "name": "WinRAR", "description": "Compresor de archivos", "recommended": true, "manualUrl": "https://www.rarlab.com/rar/winrar-x64-723es.exe", "manualNote": "URL VERSIONADA (7.23, 08/2026): si falla la descarga, sacar la actual de rarlab.com/download.htm. Fallback por el mismo motivo que Firefox" },
+        { "id": "AnyDeskSoftwareGmbH.AnyDesk", "name": "AnyDesk", "description": "Acceso remoto de soporte", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://download.anydesk.com/AnyDesk.exe", "manualNote": "Descarga directa - siempre ultima version", "silentArgs": "--install \"C:\\Program Files (x86)\\AnyDesk\" --silent --start-with-win --create-shortcuts --create-desktop-icon" },
+        { "id": "WireGuard.WireGuard", "name": "WireGuard", "description": "VPN para soporte remoto (importar tuneles por GUI, no por comando: si no, no se ven en la app)", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://download.wireguard.com/windows-client/wireguard-installer.exe", "manualNote": "Instalador oficial - siempre ultima version" }
+      ]
+    },
+    {
+      "name": "Certificados y Firma Digital",
+      "description": "Certificados digitales del titular en el servidor",
+      "packages": [
+        { "id": "EclipseAdoptium.Temurin.8.JRE", "name": "Java JRE 8 (Temurin)", "description": "Runtime Java (necesario para AutoFirma)", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://api.adoptium.net/v3/installer/latest/8/ga/windows/x64/jre/hotspot/normal/eclipse", "manualNote": "MSI directo desde API Adoptium - siempre ultima version" },
+        { "id": "Gobierno.AutoFirma", "name": "AutoFirma", "description": "Firma electronica del gobierno de Espana", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://firmaelectronica.gob.es/content/dam/firmaelectronica/descargas-software/autofirma19/Autofirma64.zip", "manualNote": "Descarga directa ZIP - se extrae e instala automaticamente" },
+        { "id": "FNMT.Configurador", "name": "Configurador FNMT", "description": "Configurador de certificados FNMT", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://descargas.cert.fnmt.es/Windows/Configurador_FNMT_5.1.0_64bits.exe", "manualNote": "Descarga directa del ejecutable" }
+      ]
+    },
+    {
+      "name": "Copias de seguridad",
+      "description": "Herramientas de backup del servidor (configuracion manual posterior)",
+      "packages": [
+        { "id": "pCloudAG.pCloudDrive", "name": "pCloud Drive", "description": "Nube pCloud (iniciar sesion a mano tras instalar)", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://partner.pcloud.com/dl/win64", "manualNote": "URL oficial estable de pCloud (sacada del manifiesto winget)" },
+        { "id": "restic.restic", "name": "restic", "description": "Motor de backup cifrado a cloud (B2/S3). OJO: winget lo instala en PATH; para servidores FERVET-style se despliega a mano en C:\\Tools\\restic con ACL solo-admins", "recommended": false, "manualNote": "Sin manualUrl estable: bajar ZIP windows_amd64 de la ultima release en github.com/restic/restic/releases" }
+      ]
+    }
+  ]
+}
