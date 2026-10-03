@@ -58,6 +58,12 @@ Manhattan (`~/proyectos/aprendizaje/proyecto_manhatan`) depende de:
   dan **acceso denegado siendo admin** por PowerShell Y reg.exe = filtro de registro
   (Norton 360 o UCPD, sin distinguir). .NET en español dice "operacion no valida": manda
   el HResult (0x80070005). Salen como BLOQUEADO.
+  Prueba en CELIA (doblea_celia_nuevo, 26200, Norton 360 instalado, UCPD Running), 03/10:
+  reg.exe en Dsh = denegado; COPIA RENOMBRADA rg.exe = denegado (no es filtro por nombre
+  de proceso); reg.exe en clave neutra de HKLM\SOFTWARE\Policies = OK (no es toda la rama).
+  ACL de Dsh: Administradores FullControl. Bloqueo especifico de la clave. Norton vs
+  Windows SIN distinguir: falta probar con la proteccion de Norton apagada o en un 25H2
+  sin Norton.
 - Tweaks HKCU como SYSTEM caen en la cuenta SYSTEM: sin `-Usuario` se omiten.
 - Iconos de escritorio: el Explorador moderno lee `HideDesktopIcons\NewStartPanel`
   (ClassicStartMenu solo no basta).
