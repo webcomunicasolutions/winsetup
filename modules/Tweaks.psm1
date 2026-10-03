@@ -23,6 +23,197 @@ $script:AllowedTweakCommands = @(
     'Set-MpPreference', 'Set-ExecutionPolicy'
 )
 
+# =============================================================================
+# Destino de los tweaks de USUARIO (HKCU)
+# -----------------------------------------------------------------------------
+# HKCU es la cuenta que ejecuta el script, no la persona que usa el PC. Como
+# SYSTEM (tarea programada de Manhattan) o con credenciales de otro admin, HKCU
+# cae en la cuenta equivocada y el tweak "funciona" sin que la usuaria vea nada.
+#   - Con -Usuario <cuenta>: HKCU:\ se redirige a HKEY_USERS\<SID> de esa persona
+#     (su hive ya cargado si tiene sesion abierta, o su NTUSER.DAT cargado aqui).
+#   - Sin -Usuario y como SYSTEM: los tweaks HKCU se OMITEN con aviso.
+#   - Sin -Usuario y con una cuenta normal: se aplican a ESA cuenta (y se dice cual).
+# =============================================================================
+$script:UserTarget = $null   # @{ Account; Sid; Root; RegRoot; LoadedByUs; HiveName }
+
+function Test-RunningAsSystem {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    return ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -eq 'S-1-5-18')
+}
+
+function Set-TweaksUserTarget {
+    <#
+    .SYNOPSIS
+        Fija la cuenta cuyo HKCU recibira los tweaks de usuario.
+    .PARAMETER Usuario
+        Cuenta local o de dominio ('ana', 'EQUIPO\ana', 'DOMINIO\ana').
+    .PARAMETER RegistryRoot
+        SOLO PARA PRUEBAS: usa esta ruta como raiz de HKCU en vez del hive real.
+    .OUTPUTS
+        $true si el destino queda listo, $false si no (y lo registra en el log).
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Usuario,
+
+        [string]$RegistryRoot
+    )
+
+    Clear-TweaksUserTarget
+
+    if ($RegistryRoot) {
+        $script:UserTarget = @{
+            Account = $Usuario; Sid = '(prueba)'; Root = $RegistryRoot.TrimEnd('\')
+            RegRoot = ($RegistryRoot.TrimEnd('\') -replace '^HKCU:\\', 'HKCU\' -replace '^Registry::HKEY_USERS\\', 'HKU\')
+            LoadedByUs = $false; HiveName = $null
+        }
+        return $true
+    }
+
+    try {
+        $sid = ([Security.Principal.NTAccount]$Usuario).Translate([Security.Principal.SecurityIdentifier]).Value
+    }
+    catch {
+        Write-Log -Message "Usuario destino '$Usuario' no existe en este equipo: $_" -Level Error
+        return $false
+    }
+
+    $profileKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid"
+    $profilePath = (Get-ItemProperty -Path $profileKey -Name ProfileImagePath -ErrorAction SilentlyContinue).ProfileImagePath
+    if (-not $profilePath) {
+        Write-Log -Message "El usuario '$Usuario' ($sid) no tiene perfil creado todavia: que inicie sesion una vez y repetir" -Level Error
+        return $false
+    }
+
+    $target = @{ Account = $Usuario; Sid = $sid; LoadedByUs = $false; HiveName = $null }
+
+    if (Test-Path "Registry::HKEY_USERS\$sid") {
+        # Tiene sesion abierta: su hive ya esta montado (y su NTUSER.DAT bloqueado)
+        $target.Root = "Registry::HKEY_USERS\$sid"
+        $target.RegRoot = "HKU\$sid"
+        Write-Log -Message "Usuario destino '$Usuario' con sesion abierta: se escribe en HKU\$sid" -Level Info
+    }
+    else {
+        $ntuser = Join-Path $profilePath 'NTUSER.DAT'
+        $hiveName = "WinSetup_$($sid -replace '[^0-9]', '')"
+        $out = & reg.exe load "HKU\$hiveName" "$ntuser" 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log -Message "No se pudo cargar $ntuser : $out" -Level Error
+            return $false
+        }
+        $target.Root = "Registry::HKEY_USERS\$hiveName"
+        $target.RegRoot = "HKU\$hiveName"
+        $target.LoadedByUs = $true
+        $target.HiveName = $hiveName
+        Write-Log -Message "Usuario destino '$Usuario' sin sesion: cargado $ntuser en HKU\$hiveName" -Level Info
+    }
+
+    $script:UserTarget = $target
+    return $true
+}
+
+function Clear-TweaksUserTarget {
+    <#
+    .SYNOPSIS
+        Quita el destino de usuario y descarga su NTUSER.DAT si lo cargamos nosotros.
+    .DESCRIPTION
+        Un hive que se queda montado impide a esa persona iniciar sesion con su
+        perfil (visto en FERVET 08/2026 con el perfil Default). Por eso se llama
+        siempre en un finally y se reintenta la descarga.
+    #>
+    [CmdletBinding()]
+    param()
+
+    $t = $script:UserTarget
+    $script:UserTarget = $null
+    if (-not $t -or -not $t.LoadedByUs) { return }
+
+    for ($i = 1; $i -le 5; $i++) {
+        [GC]::Collect()
+        [GC]::WaitForPendingFinalizers()
+        $out = & reg.exe unload "HKU\$($t.HiveName)" 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log -Message "Perfil de '$($t.Account)' descargado (HKU\$($t.HiveName))" -Level Info
+            return
+        }
+        Start-Sleep -Seconds 2
+    }
+    Write-Log -Message "NO se pudo descargar HKU\$($t.HiveName): $out. Ejecutar 'reg unload HKU\$($t.HiveName)' o reiniciar ANTES de que '$($t.Account)' inicie sesion" -Level Error
+}
+
+function Get-TweaksUserTargetDescription {
+    <#
+    .SYNOPSIS
+        Texto para el log/pantalla: a quien van los tweaks de usuario.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+
+    if ($script:UserTarget) { return "$($script:UserTarget.Account) ($($script:UserTarget.Sid))" }
+    if (Test-RunningAsSystem) { return 'NINGUNO (se ejecuta como SYSTEM sin -Usuario: se omiten)' }
+    return "$([Security.Principal.WindowsIdentity]::GetCurrent().Name) (la cuenta que ejecuta el script)"
+}
+
+function Resolve-TweakRegistryPath {
+    <#
+    .SYNOPSIS
+        Traduce una ruta del JSON al destino real. $null = hay que omitirla.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if ($Path -notmatch '^HKCU:\\') { return $Path }
+    if ($script:UserTarget) { return ($Path -replace '^HKCU:', $script:UserTarget.Root) }
+    if (Test-RunningAsSystem) { return $null }
+    return $Path
+}
+
+function Resolve-TweakCommandText {
+    <#
+    .SYNOPSIS
+        Redirige HKCU en un comando del JSON. $null = hay que omitirlo.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CommandText
+    )
+
+    $usesHkcu = $CommandText -match 'HKCU:\\|HKCU\\|HKEY_CURRENT_USER'
+    if (-not $usesHkcu) { return $CommandText }
+    if ($script:UserTarget) {
+        # Una sola pasada: con -replace encadenados, lo ya sustituido volvia a
+        # casar con el patron siguiente y la ruta se duplicaba.
+        $root = $script:UserTarget.Root
+        $regRoot = $script:UserTarget.RegRoot
+        return [regex]::Replace($CommandText, 'HKCU:\\|HKEY_CURRENT_USER\\|(?<![A-Za-z])HKCU\\', {
+            param($m)
+            if ($m.Value -eq 'HKCU:\') { return $root + '\' }
+            return $regRoot + '\'
+        }.GetNewClosure())
+    }
+    if (Test-RunningAsSystem) { return $null }
+    return $CommandText
+}
+
+function ConvertTo-RegExePath {
+    # Ruta de PowerShell -> ruta de reg.exe (HKCU:\x, HKLM:\x, Registry::HKEY_USERS\x)
+    param([string]$Path)
+    return ($Path `
+        -replace '^Registry::HKEY_USERS\\', 'HKU\' `
+        -replace '^Registry::HKEY_LOCAL_MACHINE\\', 'HKLM\' `
+        -replace '^Registry::HKEY_CURRENT_USER\\', 'HKCU\' `
+        -replace '^(HKCU|HKLM|HKU):\\', '$1\')
+}
+
 function Get-DisallowedCommands {
     <#
     .SYNOPSIS
@@ -136,8 +327,8 @@ function Backup-RegistryKey {
         }
 
         # Convertir path PowerShell a formato cmd para reg export
-        # HKCU:\Software\... -> HKCU\Software\...
-        $regPath = $Path -replace ':\\', '\'
+        # HKCU:\Software\... -> HKCU\Software\... ; Registry::HKEY_USERS\x -> HKU\x
+        $regPath = ConvertTo-RegExePath -Path $Path
 
         # Generar nombre de archivo unico
         $keyName = ($Path -split '\\')[-1] -replace '[^a-zA-Z0-9]', '_'
@@ -198,14 +389,24 @@ function Apply-RegistryTweak {
 
     try {
         $allOk = $true
+        $applied = 0
+        $omitted = 0
 
-        foreach ($entry in $RegistryEntries) {
+        foreach ($original in $RegistryEntries) {
+            $realPath = Resolve-TweakRegistryPath -Path $original.path
+            if (-not $realPath) {
+                Write-Log -Message "  OMITIDO (es de usuario y se ejecuta como SYSTEM sin -Usuario): $($original.path)\$($original.name)" -Level Warning
+                $omitted++
+                continue
+            }
+            # Copia con la ruta real; el resto del bloque no cambia
+            $entry = [pscustomobject]@{ path = $realPath; name = $original.name; value = $original.value; type = $original.type }
             try {
                 # Backup de la key antes de modificar
                 Backup-RegistryKey -Path $entry.path | Out-Null
 
                 # Crear la key si no existe
-                if (-not (Test-Path $entry.path)) {
+                if (-not (Test-Path -LiteralPath $entry.path)) {
                     New-Item -Path $entry.path -Force | Out-Null
                     Write-Log -Message "Clave de registro creada: $($entry.path)" -Level Info
                 }
@@ -224,12 +425,13 @@ function Apply-RegistryTweak {
                 # Aplicar el valor
                 Set-ItemProperty -Path $entry.path -Name $entry.name -Value $value -Type $propertyType -Force -ErrorAction Stop
                 Write-Log -Message "  Registro aplicado: $($entry.path)\$($entry.name) = $($entry.value) ($propertyType)" -Level Info
+                $applied++
             }
             catch {
                 # Fallback: intentar con reg.exe cuando PowerShell falla (ej: claves protegidas en Win11)
                 Write-Log -Message "  Set-ItemProperty fallo, intentando con reg.exe..." -Level Warning
                 try {
-                    $regPath = $entry.path -replace '^HKCU:\\', 'HKCU\' -replace '^HKLM:\\', 'HKLM\'
+                    $regPath = ConvertTo-RegExePath -Path $entry.path
                     $regType = switch ($entry.type) {
                         'DWord'  { 'REG_DWORD' }
                         'String' { 'REG_SZ' }
@@ -245,6 +447,7 @@ function Apply-RegistryTweak {
                     $regOutput = cmd /c $regCmd 2>&1
                     if ($LASTEXITCODE -eq 0) {
                         Write-Log -Message "  Registro aplicado via reg.exe: $($entry.path)\$($entry.name)" -Level Info
+                        $applied++
                     }
                     else {
                         Write-Log -Message "  Error reg.exe: $regOutput" -Level Error
@@ -258,6 +461,10 @@ function Apply-RegistryTweak {
             }
         }
 
+        if ($allOk -and $applied -eq 0 -and $omitted -gt 0) {
+            Write-Log -Message "Tweak omitido (solo tiene claves de usuario): $TweakName" -Level Warning
+            return 'Skipped'
+        }
         if ($allOk) {
             Write-Log -Message "Tweak aplicado correctamente: $TweakName" -Level Success
             return 'Success'
@@ -290,10 +497,17 @@ function Apply-PowerConfiguration {
 
     try {
         $allOk = $true
+        $executed = 0
 
-        foreach ($cmd in $Commands) {
+        foreach ($rawCmd in $Commands) {
             try {
+                $cmd = Resolve-TweakCommandText -CommandText $rawCmd
+                if (-not $cmd) {
+                    Write-Log -Message "  OMITIDO (es de usuario y se ejecuta como SYSTEM sin -Usuario): $rawCmd" -Level Warning
+                    continue
+                }
                 Write-Log -Message "Ejecutando: $cmd" -Level Info
+                $executed++
 
                 # Si es un cmdlet de PowerShell (contiene - como Set-NetConnectionProfile)
                 if ($cmd -match '^\w+-\w+') {
@@ -337,11 +551,12 @@ function Apply-PowerConfiguration {
                 }
             }
             catch {
-                Write-Log -Message "  Error al ejecutar '$cmd': $_" -Level Error
+                Write-Log -Message "  Error al ejecutar '$rawCmd': $_" -Level Error
                 $allOk = $false
             }
         }
 
+        if ($allOk -and $executed -eq 0) { return 'Skipped' }
         if ($allOk) {
             return 'Success'
         }
@@ -553,8 +768,15 @@ function Apply-RecommendedTweaks {
         Write-Progress -Activity "Aplicando tweaks recomendados" -Completed
         Write-Host ""
 
-        # Reiniciar explorer.exe para que los cambios de registro surtan efecto
-        if ($results.Success.Count -gt 0) {
+        # Reiniciar explorer.exe para que los cambios de registro surtan efecto.
+        # SOLO si el script corre en la sesion de la propia persona: como SYSTEM
+        # mataria el Explorador de todos y lo relanzaria en la sesion 0 (invisible),
+        # y con -Usuario el Explorador que importa es el de otra cuenta.
+        $explorerPropio = (Test-InteractiveSession) -and -not $script:UserTarget -and -not (Test-RunningAsSystem)
+        if ($results.Success.Count -gt 0 -and -not $explorerPropio) {
+            Write-Log -Message "No se reinicia el Explorador (no es la sesion de la persona): los cambios de usuario se veran al cerrar y abrir sesion" -Level Warning
+        }
+        if ($results.Success.Count -gt 0 -and $explorerPropio) {
             Write-Log -Message "Reiniciando explorer.exe para aplicar cambios visuales..." -Level Info
             try {
                 Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
@@ -581,6 +803,12 @@ function Apply-RecommendedTweaks {
 # Exportar funciones publicas
 # =============================================================================
 Export-ModuleMember -Function @(
+    'Test-RunningAsSystem',
+    'Set-TweaksUserTarget',
+    'Clear-TweaksUserTarget',
+    'Get-TweaksUserTargetDescription',
+    'Resolve-TweakRegistryPath',
+    'Resolve-TweakCommandText',
     'Get-DisallowedCommands',
     'Get-TweaksCatalog',
     'Backup-RegistryKey',

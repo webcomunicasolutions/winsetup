@@ -28,6 +28,32 @@ Sistema modular PowerShell para automatizar la configuracion de PCs nuevos con W
 irm https://raw.githubusercontent.com/USUARIO/instalacion_software/main/setup.ps1 | iex
 ```
 
+### Solo una parte (tweaks, programas o bloatware)
+
+```powershell
+.\main.ps1 -SoloTweaks                       # solo tweaks recomendados, sin instalar nada
+.\main.ps1 -SoloSoftware -Profile cliente    # solo programas del perfil
+.\main.ps1 -SoloBloatware                    # solo quitar bloatware
+.\main.ps1 -SoloTweaks -SoloBloatware        # se pueden combinar
+```
+
+En el menu (`-Menu`) son las opciones 5, 6 y 7. Desatendido (Manhattan, como SYSTEM,
+via `setup.ps1`): `WINSETUP_SOLO=tweaks` (o `software`, `bloatware`, `"tweaks,bloatware"`).
+Un valor no reconocido **para** el script (exit 1): nunca cae en "todo".
+
+### Tweaks de usuario: a QUIEN se aplican
+
+Los tweaks de `HKCU` van a la cuenta que ejecuta el script, no a la persona que usa el PC:
+
+| Como se ejecuta | Donde caen los tweaks de usuario |
+|---|---|
+| Sesion de la propia persona (lo normal) | En su cuenta. Se reinicia el Explorador |
+| `-Usuario ana` / `WINSETUP_USUARIO=ana` | En la cuenta `ana` (su hive si tiene sesion abierta, si no se carga su `NTUSER.DAT` y se descarga al acabar). Los ve al cerrar y abrir sesion |
+| Como SYSTEM sin `-Usuario` | **Se omiten** con aviso (escribirian en la cuenta SYSTEM). Los de equipo (HKLM) si se aplican |
+| Admin distinto (SSH, UAC con otra cuenta) sin `-Usuario` | En la cuenta de ese admin: el log dice cual. Usar `-Usuario` |
+
+Si `-Usuario` no existe o no tiene perfil, el script se para sin aplicar nada.
+
 ## Estructura del Proyecto
 
 ```

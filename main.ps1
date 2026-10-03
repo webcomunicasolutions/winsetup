@@ -2,11 +2,29 @@
 # =============================================================================
 # main.ps1 - Configuracion automatica de Windows
 # Instala software, aplica tweaks y remueve bloatware - TODO AUTOMATICO
+#
+# Ejemplos:
+#   .\main.ps1                                  todo lo recomendado (como siempre)
+#   .\main.ps1 -SoloTweaks                      solo tweaks, sin instalar programas
+#   .\main.ps1 -SoloTweaks -Usuario ana         tweaks de usuario en la cuenta 'ana'
+#   .\main.ps1 -SoloSoftware -Profile cliente   solo programas del perfil
+#   .\main.ps1 -SoloTweaks -SoloBloatware       se pueden combinar
+#   .\main.ps1 -Menu                            menu interactivo
+#
+# Desatendido (Manhattan/SYSTEM, via setup.ps1) con variables de entorno:
+#   WINSETUP_UNATTENDED=1  WINSETUP_PROFILE=<perfil>
+#   WINSETUP_SOLO=tweaks | software | bloatware | "tweaks,bloatware"
+#   WINSETUP_USUARIO=<cuenta>   (OBLIGATORIO para tweaks de usuario como SYSTEM)
+# Los parametros mandan sobre las variables de entorno.
 # =============================================================================
 
 param(
-    [switch]$Menu,     # Usar -Menu para modo interactivo con menu
-    [string]$Profile   # Perfil de cliente: carga config desde config/<Profile>/
+    [switch]$Menu,          # Modo interactivo con menu
+    [string]$Profile,       # Perfil de cliente: carga config desde config/<Profile>/
+    [switch]$SoloSoftware,  # Solo instalar el software recomendado
+    [switch]$SoloTweaks,    # Solo aplicar los tweaks recomendados
+    [switch]$SoloBloatware, # Solo quitar el bloatware recomendado
+    [string]$Usuario        # Cuenta que recibe los tweaks de usuario (HKCU)
 )
 
 # --- Determinar raiz del script ---
@@ -35,6 +53,38 @@ catch {
     exit 1
 }
 
+# --- Resolver que pasos se ejecutan ---
+# Una errata en WINSETUP_SOLO NO puede acabar en "todo" (instalaria Office encima
+# de un Microsoft 365): un valor desconocido para el script.
+$pasosValidos = @('software', 'tweaks', 'bloatware')
+$pasos = @()
+if ($SoloSoftware)  { $pasos += 'software' }
+if ($SoloTweaks)    { $pasos += 'tweaks' }
+if ($SoloBloatware) { $pasos += 'bloatware' }
+if ($pasos.Count -eq 0 -and $env:WINSETUP_SOLO) {
+    foreach ($p in ($env:WINSETUP_SOLO -split '[,;\s]+' | Where-Object { $_ })) {
+        $p = $p.Trim().ToLower()
+        if ($pasosValidos -notcontains $p) {
+            Write-Host "[ERROR] WINSETUP_SOLO='$($env:WINSETUP_SOLO)': '$p' no es valido. Validos: $($pasosValidos -join ', ')" -ForegroundColor Red
+            exit 1
+        }
+        if ($pasos -notcontains $p) { $pasos += $p }
+    }
+}
+$esSolo = $pasos.Count -gt 0
+if (-not $esSolo) { $pasos = $pasosValidos }
+
+if (-not $Usuario -and $env:WINSETUP_USUARIO) { $Usuario = $env:WINSETUP_USUARIO }
+
+if ($Menu -and $esSolo) {
+    Write-Host "[ERROR] -Menu no se combina con -SoloSoftware/-SoloTweaks/-SoloBloatware (el menu ya tiene esas opciones)" -ForegroundColor Red
+    exit 1
+}
+if ($Menu -and -not (Test-InteractiveSession)) {
+    Write-Host "[ERROR] -Menu necesita a alguien delante y esta sesion no es interactiva (SYSTEM/WinRM/SSH/WINSETUP_UNATTENDED)" -ForegroundColor Red
+    exit 1
+}
+
 # --- Resolver perfil de configuracion ---
 $configDir = Join-Path $ScriptRoot "config"
 if ($Profile) {
@@ -59,7 +109,14 @@ if ($Profile) {
 if (-not (Test-Admin)) {
     Write-ColorText "Se requieren permisos de administrador." -Color Yellow
     Write-ColorText "Elevando permisos..." -Color Yellow
-    Request-Elevation
+    $relanzar = @()
+    if ($Menu)          { $relanzar += '-Menu' }
+    if ($Profile)       { $relanzar += "-Profile `"$Profile`"" }
+    if ($SoloSoftware)  { $relanzar += '-SoloSoftware' }
+    if ($SoloTweaks)    { $relanzar += '-SoloTweaks' }
+    if ($SoloBloatware) { $relanzar += '-SoloBloatware' }
+    if ($Usuario)       { $relanzar += "-Usuario `"$Usuario`"" }
+    Request-Elevation -ExtraArguments ($relanzar -join ' ')
     exit
 }
 
@@ -134,161 +191,190 @@ if (-not (Test-Path $configPaths.Backups)) {
     New-Item -Path $configPaths.Backups -ItemType Directory -Force | Out-Null
 }
 
-# =============================================================================
-# MODO AUTOMATICO (por defecto) o MODO MENU (con -Menu)
-# =============================================================================
-
-if ($Menu) {
-    # --- MODO MENU INTERACTIVO ---
-    $running = $true
-    while ($running) {
-        try {
-            $choice = Show-MainMenu
-
-            switch ($choice) {
-                1 {
-                    if (-not $env.HasWinget) {
-                        Write-ColorText "winget no esta disponible. No se puede instalar software." -Color Red
-                        Start-Sleep -Seconds 2
-                    }
-                    else {
-                        Start-SoftwareInstallation -ConfigPath $configPaths.Software
-                    }
-                }
-                2 {
-                    Start-TweaksConfiguration -ConfigPath $configPaths.Tweaks
-                }
-                3 {
-                    Start-BloatwareRemoval -ConfigPath $configPaths.Bloatware
-                }
-                4 {
-                    # Ejecutar todo automatico desde menu
-                    Write-Header -Title "CONFIGURACION COMPLETA"
-                    if (Show-Confirmation -Message "Esto instalara software, aplicara tweaks y removera bloatware. Continuar?") {
-                        $relaunchArgs = @()
-                        if ($Profile) { $relaunchArgs += "-Profile"; $relaunchArgs += $Profile }
-                        & $ScriptRoot\main.ps1 @relaunchArgs
-                    }
-                }
-                5 {
-                    $logDir = Join-Path $ScriptRoot "logs"
-                    $latestLog = Get-ChildItem -Path $logDir -Filter "*.log" -ErrorAction SilentlyContinue |
-                        Sort-Object LastWriteTime -Descending |
-                        Select-Object -First 1
-
-                    if ($latestLog) {
-                        Write-Header -Title "LOG ACTUAL"
-                        Get-Content $latestLog.FullName | Out-Host
-                        Wait-UserAck -Message "Presione Enter para continuar"
-                    }
-                    else {
-                        Write-ColorText "No hay logs disponibles." -Color Yellow
-                        Start-Sleep -Seconds 2
-                    }
-                }
-                6 {
-                    $running = $false
-                }
-                default {
-                    Write-ColorText "Opcion no valida." -Color Red
-                    Start-Sleep -Seconds 1
-                }
-            }
-        }
-        catch {
-            Write-Log -Message "Error inesperado en el menu principal: $_" -Level Error
-            Write-ColorText "Ocurrio un error inesperado. Revise el log para mas detalles." -Color Red
-            Start-Sleep -Seconds 2
-        }
+# --- Destino de los tweaks de usuario (HKCU) ---
+# Se fija aqui, una vez, y se libera en el finally del final (un NTUSER.DAT que
+# se queda cargado impide a esa persona entrar con su perfil).
+$necesitaTweaks = $Menu -or ($pasos -contains 'tweaks')
+if ($Usuario -and $necesitaTweaks) {
+    if (-not (Set-TweaksUserTarget -Usuario $Usuario)) {
+        Write-ColorText "No se pudo preparar el usuario destino '$Usuario'. No se aplica nada para no escribir en otra cuenta." -Color Red
+        Wait-UserAck -Message "Presione Enter para salir"
+        exit 1
     }
 }
-else {
-    # --- MODO AUTOMATICO (por defecto) ---
-    $headerTitle = "CONFIGURACION AUTOMATICA DE WINDOWS"
-    if ($Profile) { $headerTitle = "CONFIGURACION AUTOMATICA - PERFIL: $($Profile.ToUpper())" }
+if ($necesitaTweaks) {
+    $destino = Get-TweaksUserTargetDescription
+    Write-Log -Message "Tweaks de usuario (HKCU) se aplican a: $destino" -Level Info
+    Write-ColorText "Tweaks de usuario para: $destino" -Color Magenta
+}
+
+# =============================================================================
+# Ejecucion de los pasos recomendados (todo, o solo los pedidos)
+# =============================================================================
+function Invoke-PasosRecomendados {
+    param([string[]]$Pasos)
+
+    $vacio = @{ Success = @(); Failed = @(); Skipped = @() }
+    $resultados = @()
+    $total = $Pasos.Count + 1
+    $n = 1
+
+    $headerTitle = if ($Pasos.Count -eq 3) { "CONFIGURACION AUTOMATICA DE WINDOWS" } else { "SOLO: $(($Pasos -join ' + ').ToUpper())" }
+    if ($Profile) { $headerTitle += " - PERFIL: $($Profile.ToUpper())" }
     Write-Header -Title $headerTitle
-    Write-Host ""
-    Write-ColorText "Se ejecutara la configuracion completa:" -Color Cyan
-    Write-Host "  1. Crear punto de restauracion y backup" -ForegroundColor White
-    Write-Host "  2. Instalar software recomendado" -ForegroundColor White
-    Write-Host "  3. Aplicar configuraciones del sistema" -ForegroundColor White
-    Write-Host "  4. Remover bloatware" -ForegroundColor White
-    Write-Host ""
+    Write-Log -Message "Pasos a ejecutar: $($Pasos -join ', ')" -Level Info
 
-    # --- Paso 1: Backup y punto de restauracion ---
-    Write-Section -Title "Paso 1/4: Backup y punto de restauracion"
-    try {
-        if ($settings -and $settings.options.createRestorePoint) {
-            New-SystemRestorePoint -Description "WinSetup - Pre configuracion"
-        }
-        New-FullBackup -BackupDir $configPaths.Backups
-        Write-Log -Message "Backup completado" -Level Success
-    }
-    catch {
-        Write-Log -Message "Error al crear backup: $_" -Level Warning
-        Write-ColorText "No se pudo crear backup completo, pero se continua..." -Color Yellow
-    }
-
-    # --- Paso 2: Instalar software recomendado ---
-    $swResults = @{ Success = @(); Failed = @(); Skipped = @() }
-    Write-Section -Title "Paso 2/4: Instalando software"
-    if ($env.HasWinget) {
+    # --- Backup y punto de restauracion (solo si se toca el sistema) ---
+    if ($Pasos -contains 'tweaks' -or $Pasos -contains 'bloatware') {
+        Write-Section -Title "Paso $n/$($total): Backup y punto de restauracion"
         try {
-            $swResults = Install-RecommendedSoftware -ConfigPath $configPaths.Software
-            if (-not $swResults) {
-                $swResults = @{ Success = @(); Failed = @(); Skipped = @() }
+            if ($settings -and $settings.options.createRestorePoint) {
+                New-SystemRestorePoint -Description "WinSetup - Pre configuracion"
             }
+            New-FullBackup -BackupDir $configPaths.Backups
+            Write-Log -Message "Backup completado" -Level Success
         }
         catch {
-            Write-Log -Message "Error en instalacion de software: $_" -Level Error
+            Write-Log -Message "Error al crear backup: $_" -Level Warning
+            Write-ColorText "No se pudo crear backup completo, pero se continua..." -Color Yellow
         }
     }
-    else {
-        Write-Host ""
-        Write-Host "  !! WINGET NO DISPONIBLE !!" -ForegroundColor Red
-        Write-Host "  No se puede instalar software automaticamente." -ForegroundColor Yellow
-        Write-Host "  Instale 'App Installer' desde Microsoft Store y vuelva a ejecutar." -ForegroundColor Yellow
-        Write-Host ""
-        Write-Log -Message "winget no disponible, omitiendo instalacion de software" -Level Warning
-        Start-Sleep -Seconds 3
+    else { $total-- ; $n-- }
+    $n++
+
+    if ($Pasos -contains 'software') {
+        Write-Section -Title "Paso $n/$($total): Instalando software"
+        $n++
+        if ($env.HasWinget) {
+            try {
+                $r = Install-RecommendedSoftware -ConfigPath $configPaths.Software
+                $resultados += ,$(if ($r) { $r } else { $vacio })
+            }
+            catch { Write-Log -Message "Error en instalacion de software: $_" -Level Error }
+        }
+        else {
+            Write-Host ""
+            Write-Host "  !! WINGET NO DISPONIBLE !!" -ForegroundColor Red
+            Write-Host "  No se puede instalar software automaticamente." -ForegroundColor Yellow
+            Write-Host "  Instale 'App Installer' desde Microsoft Store y vuelva a ejecutar." -ForegroundColor Yellow
+            Write-Host ""
+            Write-Log -Message "winget no disponible, omitiendo instalacion de software" -Level Warning
+            Start-Sleep -Seconds 3
+        }
     }
 
-    # --- Paso 3: Aplicar tweaks recomendados ---
-    $twResults = @{ Success = @(); Failed = @(); Skipped = @() }
-    Write-Section -Title "Paso 3/4: Aplicando configuraciones"
-    try {
-        $twResults = Apply-RecommendedTweaks -ConfigPath $configPaths.Tweaks
-        if (-not $twResults) {
-            $twResults = @{ Success = @(); Failed = @(); Skipped = @() }
+    if ($Pasos -contains 'tweaks') {
+        Write-Section -Title "Paso $n/$($total): Aplicando configuraciones"
+        $n++
+        try {
+            $r = Apply-RecommendedTweaks -ConfigPath $configPaths.Tweaks
+            $resultados += ,$(if ($r) { $r } else { $vacio })
         }
-    }
-    catch {
-        Write-Log -Message "Error en tweaks: $_" -Level Error
+        catch { Write-Log -Message "Error en tweaks: $_" -Level Error }
     }
 
-    # --- Paso 4: Remover bloatware recomendado ---
-    $blResults = @{ Success = @(); Failed = @(); Skipped = @() }
-    Write-Section -Title "Paso 4/4: Removiendo bloatware"
-    try {
-        $blResults = Remove-RecommendedBloatware -ConfigPath $configPaths.Bloatware
-        if (-not $blResults) {
-            $blResults = @{ Success = @(); Failed = @(); Skipped = @() }
+    if ($Pasos -contains 'bloatware') {
+        Write-Section -Title "Paso $n/$($total): Removiendo bloatware"
+        $n++
+        try {
+            $r = Remove-RecommendedBloatware -ConfigPath $configPaths.Bloatware
+            $resultados += ,$(if ($r) { $r } else { $vacio })
         }
-    }
-    catch {
-        Write-Log -Message "Error en remocion de bloatware: $_" -Level Error
+        catch { Write-Log -Message "Error en remocion de bloatware: $_" -Level Error }
     }
 
     # --- Resumen final ---
     Write-Host ""
-    $combined = @{
-        Success = @($swResults.Success) + @($twResults.Success) + @($blResults.Success)
-        Failed  = @($swResults.Failed) + @($twResults.Failed) + @($blResults.Failed)
-        Skipped = @($swResults.Skipped) + @($twResults.Skipped) + @($blResults.Skipped)
+    $combined = @{ Success = @(); Failed = @(); Skipped = @() }
+    foreach ($r in $resultados) {
+        $combined.Success += @($r.Success)
+        $combined.Failed  += @($r.Failed)
+        $combined.Skipped += @($r.Skipped)
     }
     Show-Summary -Results $combined
+    Write-Log -Message "Configuracion finalizada ($($Pasos -join ', '))" -Level Success
+}
 
-    Write-Log -Message "Configuracion completa finalizada" -Level Success
+# =============================================================================
+# MODO AUTOMATICO (por defecto) o MODO MENU (con -Menu)
+# =============================================================================
+
+try {
+    if ($Menu) {
+        # --- MODO MENU INTERACTIVO ---
+        $running = $true
+        while ($running) {
+            try {
+                $choice = Show-MainMenu
+
+                switch ($choice) {
+                    1 {
+                        if (-not $env.HasWinget) {
+                            Write-ColorText "winget no esta disponible. No se puede instalar software." -Color Red
+                            Start-Sleep -Seconds 2
+                        }
+                        else {
+                            Start-SoftwareInstallation -ConfigPath $configPaths.Software
+                        }
+                    }
+                    2 {
+                        Start-TweaksConfiguration -ConfigPath $configPaths.Tweaks
+                    }
+                    3 {
+                        Start-BloatwareRemoval -ConfigPath $configPaths.Bloatware
+                    }
+                    { $_ -in 4, 5, 6, 7 } {
+                        $elegidos = switch ($choice) {
+                            4 { @('software', 'tweaks', 'bloatware') }
+                            5 { @('tweaks') }
+                            6 { @('software') }
+                            7 { @('bloatware') }
+                        }
+                        if (Show-Confirmation -Message "Se aplicara lo recomendado de: $($elegidos -join ', '). Continuar?") {
+                            Invoke-PasosRecomendados -Pasos $elegidos
+                            Wait-UserAck -Message "Presione Enter para volver al menu"
+                        }
+                    }
+                    8 {
+                        $logDir = Join-Path $ScriptRoot "logs"
+                        $latestLog = Get-ChildItem -Path $logDir -Filter "*.log" -ErrorAction SilentlyContinue |
+                            Sort-Object LastWriteTime -Descending |
+                            Select-Object -First 1
+
+                        if ($latestLog) {
+                            Write-Header -Title "LOG ACTUAL"
+                            Get-Content $latestLog.FullName | Out-Host
+                            Wait-UserAck -Message "Presione Enter para continuar"
+                        }
+                        else {
+                            Write-ColorText "No hay logs disponibles." -Color Yellow
+                            Start-Sleep -Seconds 2
+                        }
+                    }
+                    9 {
+                        $running = $false
+                    }
+                    default {
+                        Write-ColorText "Opcion no valida." -Color Red
+                        Start-Sleep -Seconds 1
+                    }
+                }
+            }
+            catch {
+                Write-Log -Message "Error inesperado en el menu principal: $_" -Level Error
+                Write-ColorText "Ocurrio un error inesperado. Revise el log para mas detalles." -Color Red
+                Start-Sleep -Seconds 2
+            }
+        }
+    }
+    else {
+        # --- MODO AUTOMATICO (todo por defecto, o solo lo pedido) ---
+        Invoke-PasosRecomendados -Pasos $pasos
+    }
+}
+finally {
+    # Descargar el NTUSER.DAT del usuario destino si lo cargamos (tambien con Ctrl+C)
+    Clear-TweaksUserTarget
 }
 
 # --- Despedida ---

@@ -108,7 +108,7 @@ function Show-MainMenu {
         Presenta las opciones principales del sistema y retorna
         el numero de opcion seleccionada por el usuario.
     .OUTPUTS
-        [int] Numero de opcion seleccionada (1-6).
+        [int] Numero de opcion seleccionada (1-9).
     #>
     [CmdletBinding()]
     param()
@@ -116,6 +116,7 @@ function Show-MainMenu {
     do {
         Write-Header -Title "MENU PRINCIPAL"
 
+        Write-Host "  Elegir uno a uno:" -ForegroundColor DarkGray
         Write-Host "  [1] " -ForegroundColor Green -NoNewline
         Write-Host "Instalar Software"
 
@@ -125,24 +126,36 @@ function Show-MainMenu {
         Write-Host "  [3] " -ForegroundColor Green -NoNewline
         Write-Host "Remover Bloatware"
 
+        Write-Host ""
+        Write-Host "  Todo lo recomendado, sin preguntar uno a uno:" -ForegroundColor DarkGray
         Write-Host "  [4] " -ForegroundColor Green -NoNewline
-        Write-Host "Configuracion Completa (todo recomendado)"
+        Write-Host "Configuracion Completa (software + tweaks + bloatware)"
 
         Write-Host "  [5] " -ForegroundColor Green -NoNewline
+        Write-Host "Solo tweaks recomendados (sin instalar programas)"
+
+        Write-Host "  [6] " -ForegroundColor Green -NoNewline
+        Write-Host "Solo software recomendado"
+
+        Write-Host "  [7] " -ForegroundColor Green -NoNewline
+        Write-Host "Solo bloatware recomendado"
+
+        Write-Host ""
+        Write-Host "  [8] " -ForegroundColor Green -NoNewline
         Write-Host "Ver Log"
 
-        Write-Host "  [6] " -ForegroundColor DarkYellow -NoNewline
+        Write-Host "  [9] " -ForegroundColor DarkYellow -NoNewline
         Write-Host "Salir"
 
         Write-Host ""
-        $selection = Read-Host "  Seleccione una opcion (1-6)"
+        $selection = Read-Host "  Seleccione una opcion (1-9)"
 
         $parsed = 0
-        $valid = [int]::TryParse($selection, [ref]$parsed) -and $parsed -ge 1 -and $parsed -le 6
+        $valid = [int]::TryParse($selection, [ref]$parsed) -and $parsed -ge 1 -and $parsed -le 9
 
         if (-not $valid) {
             Write-Host ""
-            Write-Host "  Opcion no valida. Ingrese un numero entre 1 y 6." -ForegroundColor Red
+            Write-Host "  Opcion no valida. Ingrese un numero entre 1 y 9." -ForegroundColor Red
             Write-Host ""
             Start-Sleep -Seconds 1
         }
@@ -458,6 +471,14 @@ function Show-Confirmation {
     )
 
     $options = if ($DefaultYes) { "(S/n)" } else { "(s/N)" }
+
+    # Sin nadie delante (SYSTEM, WinRM, SSH, WINSETUP_UNATTENDED=1) un Read-Host
+    # cuelga o devuelve vacio segun el host: se responde la opcion por defecto
+    # de forma explicita y queda en el log. Por defecto es NO (p.ej. no reiniciar).
+    if (-not (Test-InteractiveSession)) {
+        Write-Log -Message "Sesion no interactiva: '$Message' -> $(if ($DefaultYes) { 'SI' } else { 'NO' }) (por defecto)" -Level Info
+        return $DefaultYes.IsPresent
+    }
 
     do {
         Write-Host ""

@@ -51,8 +51,13 @@ function Test-Admin {
 }
 
 function Request-Elevation {
+    # -ExtraArguments: parametros del script original (-Profile, -SoloTweaks...),
+    # ya entrecomillados. Sin ellos la ventana elevada arrancaba SIN parametros y
+    # hacia la configuracion completa en vez de lo que se habia pedido.
     [CmdletBinding()]
-    param()
+    param(
+        [string]$ExtraArguments = ''
+    )
 
     try {
         if (Test-Admin) {
@@ -69,7 +74,7 @@ function Request-Elevation {
 
         if ($scriptPath) {
             Start-Process -FilePath 'powershell.exe' `
-                -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" `
+                -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" $ExtraArguments" `
                 -Verb RunAs
         }
         else {
