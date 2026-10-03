@@ -407,3 +407,6 @@ else {
 
 Write-Host ""
 Wait-UserAck -Message "Presione Enter para cerrar esta ventana"
+# exit explicito: sin el, $LASTEXITCODE se queda con el del ultimo programa externo
+# (reg.exe, winget...) y setup.ps1 propagaria un fallo que no es del script.
+exit 0

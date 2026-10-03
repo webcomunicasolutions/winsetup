@@ -139,6 +139,32 @@ else {
     Move-Item $json "$json.usado" -Force   # se queda en %TEMP%, no se borra
 }
 
+'== 12) setup.ps1 devuelve el codigo de salida de main.ps1 (sin colgarse en Read-Host)'
+# Copia de setup.ps1 SIN el bloque de auto-elevacion (si no, saltaria UAC) junto
+# a un main.ps1 falso. Se deja en %TEMP%\winsetup_prueba_setup (no se borra).
+$dir = Join-Path $env:TEMP 'winsetup_prueba_setup'
+New-Item $dir -ItemType Directory -Force | Out-Null
+$setup = Get-Content "$base\setup.ps1" -Raw -Encoding UTF8
+$sinElevar = [regex]::Replace($setup, '(?s)# --- Auto-elevar.*?\n\}\r?\n', '')
+if ($sinElevar -eq $setup) { Bad 'no se encontro el bloque de auto-elevacion para quitarlo' }
+Set-Content "$dir\setup.ps1" $sinElevar -Encoding UTF8
+$env:WINSETUP_UNATTENDED = '1'
+$casos = @(
+    @{ main = 'exit 7'; esperado = 7; txt = 'main sale con 7' },
+    @{ main = 'cmd /c exit 3; exit 0'; esperado = 0; txt = 'main OK tras un programa que fallo' },
+    @{ main = 'cmd /c exit 3; exit 1'; esperado = 1; txt = 'main sale con 1 (errata, usuario inexistente)' }
+)
+foreach ($c in $casos) {
+    Set-Content "$dir\main.ps1" $c.main -Encoding UTF8
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    & $ps -NoProfile -ExecutionPolicy Bypass -File "$dir\setup.ps1" *> $null
+    $code = $LASTEXITCODE
+    $sw.Stop()
+    if ($code -eq $c.esperado -and $sw.Elapsed.TotalSeconds -lt 20) { Ok "$($c.txt) -> setup.ps1 exit $code" }
+    else { Bad "$($c.txt) -> setup.ps1 exit $code (esperado $($c.esperado)), $([math]::Round($sw.Elapsed.TotalSeconds,1))s" }
+}
+Remove-Item Env:\WINSETUP_UNATTENDED
+
 Remove-Item $sandbox -Recurse -Force -ErrorAction SilentlyContinue
 ''
 if ($fallos -eq 0) { "RESULTADO: TODO OK" } else { "RESULTADO: $fallos FALLO(S)" }

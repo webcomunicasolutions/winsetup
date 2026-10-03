@@ -21,8 +21,15 @@ if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "main.ps1"))) {
     $mainArgs = @{}
     if ($env:WINSETUP_PROFILE) { $mainArgs['Profile'] = $env:WINSETUP_PROFILE }
     & (Join-Path $PSScriptRoot "main.ps1") @mainArgs
-    return
+    $codigo = $LASTEXITCODE
+    if ($null -eq $codigo) { $codigo = 0 }
+    exit $codigo
 }
+
+# Codigo que devuelve el script: el de main.ps1, o 1 si falla la descarga.
+# Manhattan lo lanza como tarea programada y lee este codigo: antes salia
+# siempre 0 aunque main.ps1 hiciera exit 1.
+$codigo = 1
 
 # --- Descarga online desde GitHub ---
 $repoOwner = "webcomunicasolutions"
@@ -79,6 +86,8 @@ try {
         $mainArgs = @{}
         if ($env:WINSETUP_PROFILE) { $mainArgs['Profile'] = $env:WINSETUP_PROFILE }
         & $mainScript.FullName @mainArgs
+        $codigo = $LASTEXITCODE
+        if ($null -eq $codigo) { $codigo = 0 }
     }
     else {
         Write-Host "  [ERROR] No se encontro main.ps1 en la descarga" -ForegroundColor Red
@@ -105,4 +114,11 @@ finally {
 }
 
 Write-Host ""
-Read-Host "Presione Enter para cerrar"
+# Sin nadie delante (Manhattan como SYSTEM) un Read-Host cuelga o depende del host
+if ($env:WINSETUP_UNATTENDED -ne '1' -and [Environment]::UserInteractive) {
+    Read-Host "Presione Enter para cerrar"
+}
+# Con -File se devuelve el codigo. Con "irm | iex" un exit cerraria la consola de
+# quien lo lanzo: ahi solo se deja en $LASTEXITCODE.
+if ($PSCommandPath) { exit $codigo }
+$global:LASTEXITCODE = $codigo
