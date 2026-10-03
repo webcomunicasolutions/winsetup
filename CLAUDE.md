@@ -37,6 +37,12 @@ Manhattan (`~/proyectos/aprendizaje/proyecto_manhatan`) depende de:
 
 ## Hechos que costaron descubrir
 
+- **Java = Oracle Java 8 x86, NO Temurin** (decision de Yeye 03/10/2026, ya informado de
+  la licencia: Oracle 8 >8u202 es de pago en uso comercial; tambien se le propuso
+  Temurin + OpenWebStart). Motivo: GEScontrat@ (Junta, JNLP) necesita `javaws`, que
+  Temurin no trae; GEScontrat@ y SILTRA probados en Doblea con 8u503 x86. No reabrir.
+  `detect` solo acepta el x86 ("Java 8 Update NNN" sin "(64-bit)").
+
 - Win11 25H2 (LUISA, build 26200): Widgets y Noticias (HKLM\Policies Dsh / Windows Feeds)
   dan **acceso denegado siendo admin** por PowerShell Y reg.exe = filtro de registro
   (Norton 360 o UCPD, sin distinguir). .NET en español dice "operacion no valida": manda

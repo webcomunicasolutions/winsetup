@@ -50,7 +50,7 @@ Solo necesitas crear los archivos que sean diferentes al default.
 
 ### Firma digital (Espana)
 ```json
-{ "id": "EclipseAdoptium.Temurin.8.JRE", "name": "Java JRE 8", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://api.adoptium.net/v3/installer/latest/8/ga/windows/x64/jre/hotspot/normal/eclipse" }
+{ "id": "Oracle.JavaRuntimeEnvironment", "detect": ["Java 8 Update [0-9][0-9][0-9]", "Java 8 Update [0-9][0-9]"], "name": "Java 8 (Oracle, x86)", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://javadl.oracle.com/webapps/download/AutoDL?BundleId=253607_2fde65a2208f40a5b5f4c844b0dff092", "silentArgs": "/s REBOOT=0" }
 { "id": "Gobierno.AutoFirma", "name": "AutoFirma", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://firmaelectronica.gob.es/content/dam/firmaelectronica/descargas-software/autofirma19/Autofirma64.zip" }
 { "id": "FNMT.Configurador", "name": "Configurador FNMT", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://descargas.cert.fnmt.es/Windows/Configurador_FNMT_5.1.0_64bits.exe" }
 ```

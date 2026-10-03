@@ -5,7 +5,7 @@ cliente** (varios puestos entrando por Escritorio Remoto). Nacido del montaje
 del servidor de FERVET (Clinica Veterinaria, Coin, 08/2026).
 
 ## Que instala (software.json)
-Chrome, Firefox, WinRAR, AnyDesk, WireGuard, Java JRE 8 + AutoFirma + FNMT,
+Chrome, Firefox, WinRAR, AnyDesk, WireGuard, Java 8 Oracle x86 + AutoFirma + FNMT,
 pCloud. **Todos con manualUrl**: en servidores se instala por WinRM/desatendido
 y ahi winget falla (0x8a15000f) aunque este instalado. Sin Office (su licencia
 en RDS es tema aparte: retail NO vale, hace falta VL o M365 con activacion

@@ -204,7 +204,7 @@ $pk = @{}; foreach ($c in $cat.categories) { foreach ($p in $c.packages) { $pk[$
 $nombres = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName } | ForEach-Object { $_.DisplayName }
-foreach ($id in 'Adobe.Acrobat.Reader.64-bit', 'EclipseAdoptium.Temurin.8.JRE') {
+foreach ($id in 'Adobe.Acrobat.Reader.64-bit', 'Oracle.JavaRuntimeEnvironment') {
     $p = $pk[$id]
     $hay = $nombres | Where-Object { $n = $_; @($p.detect | Where-Object { $n -like $_ }).Count -gt 0 } | Select-Object -First 1
     if (-not $hay) { "  (se omite $id : este equipo no tiene nada que case con $($p.detect -join ', '))"; continue }
@@ -212,6 +212,15 @@ foreach ($id in 'Adobe.Acrobat.Reader.64-bit', 'EclipseAdoptium.Temurin.8.JRE') 
     $r = Test-SoftwareInstalled -PackageId 'Prueba.NoExiste.WinSetup' -Detect @($p.detect) 6> $null
     if ($r) { Ok "$id detectado por 'detect' ($hay)" } else { Bad "$id NO detectado y el equipo tiene '$hay'" }
 }
+# Java: solo cuenta el Oracle x86 (el que necesitan GEScontrat@ y SILTRA). Nombres
+# reales del inventario de Manhattan (03/10/2026, 26 equipos Windows).
+$javaDet = @($pk['Oracle.JavaRuntimeEnvironment'].detect)
+$sies = 'Java 8 Update 503', 'Java 8 Update 451', 'Java 8 Update 45'
+$noes = 'Java 8 Update 503 (64-bit)', 'Eclipse Temurin JRE con Hotspot 8u504-b01 (x64)', 'Java(TM) SE Development Kit 11.0.8 (64-bit)', 'Java Auto Updater'
+$malJava = @($sies | Where-Object { $n = $_; -not ($javaDet | Where-Object { $n -like $_ }) }) +
+           @($noes | Where-Object { $n = $_; [bool]($javaDet | Where-Object { $n -like $_ }) })
+if ($malJava.Count -eq 0) { Ok 'Java: acepta Oracle x86, rechaza x64/Temurin/JDK 11/Auto Updater' } else { Bad "Java detect falla con: $($malJava -join ' | ')" }
+if (-not (Select-String -Path "$base\config\*\software.json", "$base\config\software.json" -Pattern 'Temurin' -Quiet)) { Ok 'ningun perfil instala ya Temurin' } else { Bad 'queda Temurin en algun software.json' }
 $r = Test-SoftwareInstalled -PackageId 'Prueba.NoExiste.WinSetup' -Detect @('Programa Que No Existe*') 6> $null
 if (-not $r) { Ok 'un patron que no casa no da falso positivo' } else { Bad 'falso positivo con patron inexistente' }
 $r = Test-SoftwareInstalled -PackageId 'Prueba.NoExiste.WinSetup' 6> $null
