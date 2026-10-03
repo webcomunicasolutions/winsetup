@@ -61,9 +61,11 @@ Manhattan (`~/proyectos/aprendizaje/proyecto_manhatan`) depende de:
   Prueba en CELIA (doblea_celia_nuevo, 26200, Norton 360 instalado, UCPD Running), 03/10:
   reg.exe en Dsh = denegado; COPIA RENOMBRADA rg.exe = denegado (no es filtro por nombre
   de proceso); reg.exe en clave neutra de HKLM\SOFTWARE\Policies = OK (no es toda la rama).
-  ACL de Dsh: Administradores FullControl. Bloqueo especifico de la clave. Norton vs
-  Windows SIN distinguir: falta probar con la proteccion de Norton apagada o en un 25H2
-  sin Norton.
+  ACL de Dsh: Administradores FullControl. Bloqueo especifico de la clave.
+  **Norton descartado**: la sesion equipos vio el mismo 0x80070005 en CELIA ANTES de que
+  se instalara Norton (Norton entro ~19:00 del 03/10; SecurityCenter2 sin Norton a las
+  18:50). Causa = el propio Windows 11 25H2 (mecanismo exacto sin identificar; no es
+  filtro por nombre de proceso). Quitar Widgets a mano: Configuracion > Barra de tareas.
 - Tweaks HKCU como SYSTEM caen en la cuenta SYSTEM: sin `-Usuario` se omiten.
 - Iconos de escritorio: el Explorador moderno lee `HideDesktopIcons\NewStartPanel`
   (ClassicStartMenu solo no basta).
