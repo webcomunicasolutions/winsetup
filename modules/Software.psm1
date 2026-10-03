@@ -44,8 +44,34 @@ function Test-SoftwareInstalled {
         [string]$PackageId,
 
         [Parameter()]
-        [string]$PackageName = ""
+        [string]$PackageName = "",
+
+        # Patrones -like de DisplayName que TAMBIEN cuentan como instalado (campo
+        # opcional "detect" de software.json). Para cuando el nombre real no se
+        # parece al del catalogo: "Adobe Acrobat (64-bit)" es el Reader desde 2023,
+        # y un "Java 8 Update 311" de Oracle cubre el Java 8 de Temurin.
+        # Parametro opcional: lo usa tambien Manhattan (auditar-paquete-winsetup.ps1).
+        [Parameter()]
+        [string[]]$Detect = @()
     )
+
+    # Check 0: patrones "detect" del catalogo, contra el registro de programas
+    $Detect = @($Detect | Where-Object { $_ })
+    if ($Detect.Count -gt 0) {
+        $installed = Get-ItemProperty @(
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            ) -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName }
+        foreach ($app in $installed) {
+            foreach ($pattern in $Detect) {
+                if ($app.DisplayName -like $pattern) {
+                    Write-Log -Message "$PackageId detectado en registro por 'detect' ($pattern): $($app.DisplayName)" -Level Info
+                    return $true
+                }
+            }
+        }
+    }
 
     # Check 1: buscar por ID en winget
     try {
@@ -468,13 +494,16 @@ function Install-SoftwarePackage {
         [string]$ManualNote = "",
 
         [Parameter()]
-        [string]$SilentArgs = ""
+        [string]$SilentArgs = "",
+
+        [Parameter()]
+        [string[]]$Detect = @()
     )
 
     Write-Log -Message "Procesando: $PackageName ($PackageId)" -Level Info
 
     # Verificar si ya esta instalado (ANTES de descargar nada)
-    if (Test-SoftwareInstalled -PackageId $PackageId -PackageName $PackageName) {
+    if (Test-SoftwareInstalled -PackageId $PackageId -PackageName $PackageName -Detect $Detect) {
         Write-Log -Message "$PackageName ya esta instalado - omitiendo" -Level Info
         return 'Skipped'
     }
@@ -589,6 +618,9 @@ function Install-SoftwareList {
         }
         if ($pkg.silentArgs) {
             $installParams.SilentArgs = $pkg.silentArgs
+        }
+        if ($pkg.detect) {
+            $installParams.Detect = @($pkg.detect)
         }
         $status = Install-SoftwarePackage @installParams
 

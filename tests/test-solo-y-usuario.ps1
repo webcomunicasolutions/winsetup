@@ -197,6 +197,26 @@ if ($si -eq $true -and $no -eq $false) { Ok 'avisa si AnyDesk esta, calla si no'
 Move-Item $falso "$falso.usado" -Force
 if ((Get-Content "$base\main.ps1" -Raw) -match '(?m)^Show-RecordatorioAnyDesk') { Ok 'main.ps1 llama al recordatorio' } else { Bad 'main.ps1 no llama al recordatorio' }
 
+'== 15) Test-SoftwareInstalled -Detect (patrones de software.json contra el registro)'
+Import-Module "$base\modules\Software.psm1" -Force -ErrorAction Stop
+$cat = Get-Content "$base\config\software.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+$pk = @{}; foreach ($c in $cat.categories) { foreach ($p in $c.packages) { $pk[$p.id] = $p } }
+$nombres = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+    Where-Object { $_.DisplayName } | ForEach-Object { $_.DisplayName }
+foreach ($id in 'Adobe.Acrobat.Reader.64-bit', 'EclipseAdoptium.Temurin.8.JRE') {
+    $p = $pk[$id]
+    $hay = $nombres | Where-Object { $n = $_; @($p.detect | Where-Object { $n -like $_ }).Count -gt 0 } | Select-Object -First 1
+    if (-not $hay) { "  (se omite $id : este equipo no tiene nada que case con $($p.detect -join ', '))"; continue }
+    # PackageName vacio y un Id que no existe: solo puede acertar por -Detect
+    $r = Test-SoftwareInstalled -PackageId 'Prueba.NoExiste.WinSetup' -Detect @($p.detect) 6> $null
+    if ($r) { Ok "$id detectado por 'detect' ($hay)" } else { Bad "$id NO detectado y el equipo tiene '$hay'" }
+}
+$r = Test-SoftwareInstalled -PackageId 'Prueba.NoExiste.WinSetup' -Detect @('Programa Que No Existe*') 6> $null
+if (-not $r) { Ok 'un patron que no casa no da falso positivo' } else { Bad 'falso positivo con patron inexistente' }
+$r = Test-SoftwareInstalled -PackageId 'Prueba.NoExiste.WinSetup' 6> $null
+if (-not $r) { Ok 'sin -Detect sigue funcionando como antes (firma compatible)' } else { Bad 'sin -Detect da positivo' }
+
 Remove-Item $sandbox -Recurse -Force -ErrorAction SilentlyContinue
 ''
 if ($fallos -eq 0) { "RESULTADO: TODO OK" } else { "RESULTADO: $fallos FALLO(S)" }

@@ -24,8 +24,10 @@ Manhattan (`~/proyectos/aprendizaje/proyecto_manhatan`) depende de:
    no lo aplica (lo lista como no cubierto). Tipos en uso: DWord, String, Binary.
    Test suyo: `v3/cli/test_preparar.py::test_catalogo_del_ps1_coincide_con_winsetup`.
 2. **`Test-SoftwareInstalled`** (Software.psm1, nombre y parametros `-PackageId`
-   `-PackageName`) y la estructura de **`config/<perfil>/software.json`**: los usa para
-   ver que `recommended` faltan (por registro, winget desactivado).
+   `-PackageName`, y el opcional `-Detect` desde 03/10/2026) y la estructura de
+   **`config/<perfil>/software.json`** (campo opcional `detect`: patrones -like de
+   DisplayName que tambien cuentan como instalado). Los usa para ver que
+   `recommended` faltan (por registro, winget desactivado).
 3. **Variables de entorno**: `WINSETUP_UNATTENDED=1`, `WINSETUP_PROFILE`, `WINSETUP_SOLO`,
    `WINSETUP_USUARIO` (worker `instalar-paquete-winsetup.ps1`, via `setup.ps1`).
 4. **Codigo de salida** (setup.ps1 propaga el de main.ps1): 0 ok, 1 no empezo,
