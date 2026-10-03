@@ -22,6 +22,9 @@ Manhattan (`~/proyectos/aprendizaje/proyecto_manhatan`) depende de:
    `recommended` y `registry[]` = `{path HKCU:\|HKLM:\, name, value, type}`; escribe con
    ese `type` (Binary = texto "90,12,..." a bytes) y audita tipo + valor. `powerConfig`
    no lo aplica (lo lista como no cubierto). Tipos en uso: DWord, String, Binary.
+   Campos opcionales `skipFromBuild` (int) + `skipReason`: si la build de Windows es
+   >= skipFromBuild el tweak se omite ENTERO (Skipped, no cuenta como fallo). En uso:
+   Ocultar Widgets y Noticias e intereses, 26200 (Win11 25H2 los bloquea).
    Test suyo: `v3/cli/test_preparar.py::test_catalogo_del_ps1_coincide_con_winsetup`.
 2. **`Test-SoftwareInstalled`** (Software.psm1, nombre y parametros `-PackageId`
    `-PackageName`, y el opcional `-Detect` desde 03/10/2026) y la estructura de

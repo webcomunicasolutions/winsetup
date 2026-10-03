@@ -45,6 +45,18 @@ $script:UserTarget = $null   # @{ Account; Sid; Root; RegRoot; LoadedByUs; HiveN
 $script:LastTweakBlocked = $false
 $script:BlockedSuffix = ' [BLOQUEADO por Windows/antivirus: acceso denegado siendo admin. Quitar a mano]'
 
+# Tweaks que Windows bloquea a partir de cierta build (campo opcional "skipFromBuild"
+# en tweaks.json). Win11 25H2 (26200) protege HKLM\...\Policies\Microsoft\Dsh y
+# Windows Feeds: acceso denegado siendo admin, por cualquier programa y SIN Norton
+# (LUISA y CELIA, 03/10/2026). Intentarlo solo daba un BLOQUEADO en cada equipo.
+$script:SkipSuffix = ' [OMITIDO: Windows lo bloquea en esta version. Quitar a mano en Configuracion > Barra de tareas]'
+
+function Test-TweakSkippedByBuild {
+    param($Tweak, [int]$Build = [Environment]::OSVersion.Version.Build)
+    if (-not $Tweak.skipFromBuild) { return $false }
+    return ($Build -ge [int]$Tweak.skipFromBuild)
+}
+
 function Test-AccessDeniedError {
     param($Exception)
     for ($e = $Exception; $e; $e = $e.InnerException) {
@@ -616,6 +628,15 @@ function Apply-TweakItem {
     try {
         Write-Log -Message "Procesando tweak: $($Tweak.name)" -Level Info
 
+        # Tweak que Windows bloquea en esta version: se omite ENTERO. Si se aplicara
+        # solo su parte de comandos, "Ocultar Widgets" saldria Success (como SYSTEM
+        # el Remove-AppxPackage no encuentra nada) sin haber ocultado nada.
+        if (Test-TweakSkippedByBuild -Tweak $Tweak) {
+            $motivo = if ($Tweak.skipReason) { $Tweak.skipReason } else { 'Windows bloquea estas claves en esta version' }
+            Write-Log -Message "  OMITIDO (build $([Environment]::OSVersion.Version.Build) >= $($Tweak.skipFromBuild)): $($Tweak.name). $motivo" -Level Warning
+            return 'Skipped'
+        }
+
         # Tweak informativo - solo mostrar
         if ($Tweak.info -eq $true) {
             Write-Log -Message "  [INFO] $($Tweak.name): $($Tweak.description)" -Level Info
@@ -720,7 +741,7 @@ function Start-TweaksConfiguration {
             switch ($result) {
                 'Success' { $results.Success += $tweak.name }
                 'Failed'  { $results.Failed += $(if ($script:LastTweakBlocked) { $tweak.name + $script:BlockedSuffix } else { $tweak.name }) }
-                'Skipped' { $results.Skipped += $tweak.name }
+                'Skipped' { $results.Skipped += $(if (Test-TweakSkippedByBuild -Tweak $tweak) { $tweak.name + $script:SkipSuffix } else { $tweak.name }) }
             }
         }
 
@@ -791,7 +812,7 @@ function Apply-RecommendedTweaks {
             switch ($result) {
                 'Success' { $results.Success += $tweak.name }
                 'Failed'  { $results.Failed += $(if ($script:LastTweakBlocked) { $tweak.name + $script:BlockedSuffix } else { $tweak.name }) }
-                'Skipped' { $results.Skipped += $tweak.name }
+                'Skipped' { $results.Skipped += $(if (Test-TweakSkippedByBuild -Tweak $tweak) { $tweak.name + $script:SkipSuffix } else { $tweak.name }) }
             }
         }
 
@@ -834,6 +855,7 @@ function Apply-RecommendedTweaks {
 # =============================================================================
 Export-ModuleMember -Function @(
     'Test-RunningAsSystem',
+    'Test-TweakSkippedByBuild',
     'Set-TweaksUserTarget',
     'Clear-TweaksUserTarget',
     'Get-TweaksUserTargetDescription',

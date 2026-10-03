@@ -240,6 +240,27 @@ if ($os -and $os.sha256 -eq 'a4d2d4459de55b5e962ba2a14f7bb794170511649138173dfa7
     Ok 'Open-Shell en el catalogo: opcional y con la huella publicada en GitHub (v4.4.198)'
 } else { Bad "Open-Shell en el catalogo: $($os | ConvertTo-Json -Compress)" }
 
+'== 17) skipFromBuild: Widgets/Noticias se omiten en Win11 25H2 sin contar como fallo'
+$jt = Get-Content "$base\config\tweaks.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+$wid = foreach ($c in $jt.categories) { foreach ($t in $c.tweaks) { if ($t.name -eq 'Ocultar Widgets') { $t } } }
+$casos = @(@{ b = 19045; e = $false }, @{ b = 22631; e = $false }, @{ b = 26100; e = $false }, @{ b = 26200; e = $true }, @{ b = 26300; e = $true })
+$mal = @($casos | Where-Object { (Test-TweakSkippedByBuild -Tweak $wid -Build $_.b) -ne $_.e })
+if ($mal.Count -eq 0) { Ok 'Ocultar Widgets: se aplica en 19045/22631/26100 y se omite desde 26200' } else { Bad "build mal resuelta: $($mal.b -join ',')" }
+$sinCampo = [pscustomobject]@{ name = 'x' }
+if (-not (Test-TweakSkippedByBuild -Tweak $sinCampo -Build 99999)) { Ok 'sin skipFromBuild nunca se omite' } else { Bad 'sin campo se omitio' }
+# Camino real de Apply-RecommendedTweaks con un tweak que se omite en cualquier build
+Remove-Item $sandbox -Recurse -Force -ErrorAction SilentlyContinue
+$json = Join-Path $env:TEMP 'winsetup_prueba_skip.json'
+@{ categories = @(@{ name = 'Prueba'; tweaks = @(@{ name = 'Tweak de prueba'; recommended = $true; skipFromBuild = 1;
+    registry = @(@{ path = "$sandbox\Skip"; name = 'Valor'; value = 1; type = 'DWord' }) }) }) } |
+    ConvertTo-Json -Depth 10 | Set-Content -Path $json -Encoding UTF8
+# Nombre cualificado: la prueba 13 define un Apply-RecommendedTweaks simulado en este script
+$res = Tweaks\Apply-RecommendedTweaks -ConfigPath $json
+$om = @($res.Skipped)
+if ($om.Count -eq 1 -and $om[0] -cmatch '\[OMITIDO: Windows lo bloquea' -and @($res.Failed).Count -eq 0) { Ok "resumen: $($om[0])" } else { Bad "Skipped=[$($om -join '|')] Failed=[$(@($res.Failed) -join '|')]" }
+if (-not (Test-Path "$sandbox\Skip")) { Ok 'no se ha escrito nada en el registro' } else { Bad 'se escribio pese a omitirse' }
+Move-Item $json "$json.usado" -Force
+
 Remove-Item $sandbox -Recurse -Force -ErrorAction SilentlyContinue
 ''
 if ($fallos -eq 0) { "RESULTADO: TODO OK" } else { "RESULTADO: $fallos FALLO(S)" }

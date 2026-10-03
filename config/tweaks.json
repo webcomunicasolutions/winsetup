@@ -83,6 +83,8 @@
         },
         {
           "name": "Ocultar Widgets",
+          "skipFromBuild": 26200,
+          "skipReason": "Windows 11 25H2 deniega la escritura de esta directiva incluso a administradores (visto en LUISA y CELIA, 03/10/2026). Quitar a mano en Configuracion > Barra de tareas > Widgets",
           "description": "Desactiva el panel de widgets en Windows 11",
           "recommended": true,
           "registry": [
@@ -112,6 +114,8 @@
         },
         {
           "name": "Desactivar Noticias e intereses",
+          "skipFromBuild": 26200,
+          "skipReason": "Windows 11 25H2 deniega la escritura de esta directiva incluso a administradores (visto en LUISA y CELIA, 03/10/2026). Quitar a mano en Configuracion > Barra de tareas > Widgets",
           "description": "Quita el feed de noticias e intereses de la barra de tareas",
           "recommended": true,
           "registry": [
