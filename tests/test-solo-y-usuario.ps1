@@ -226,6 +226,20 @@ if (-not $r) { Ok 'un patron que no casa no da falso positivo' } else { Bad 'fal
 $r = Test-SoftwareInstalled -PackageId 'Prueba.NoExiste.WinSetup' 6> $null
 if (-not $r) { Ok 'sin -Detect sigue funcionando como antes (firma compatible)' } else { Bad 'sin -Detect da positivo' }
 
+'== 16) Huella sha256: si no coincide, el instalador NO se ejecuta'
+# Se descarga un .md (no ejecutable) con una huella falsa: debe quedar apartado
+# como .RECHAZADO en C:\instaladores y devolver Failed sin llegar a ejecutarse.
+$env:WINSETUP_UNATTENDED = '1'
+$url = 'https://raw.githubusercontent.com/webcomunicasolutions/winsetup/main/README.md'
+$r = Install-ManualPackage -PackageName 'Prueba huella' -ManualUrl $url -Sha256 ('0' * 64) 6> $null
+$apartado = Test-Path 'C:\instaladores\README.md.RECHAZADO'
+if ($r -eq 'Failed' -and $apartado) { Ok 'huella falsa -> Failed y apartado como .RECHAZADO' } else { Bad "huella falsa -> $r, apartado=$apartado" }
+Remove-Item Env:\WINSETUP_UNATTENDED
+$os = $pk['Open-Shell.Open-Shell-Menu']
+if ($os -and $os.sha256 -eq 'a4d2d4459de55b5e962ba2a14f7bb794170511649138173dfa72949837b48c3f' -and $os.recommended -eq $false) {
+    Ok 'Open-Shell en el catalogo: opcional y con la huella publicada en GitHub (v4.4.198)'
+} else { Bad "Open-Shell en el catalogo: $($os | ConvertTo-Json -Compress)" }
+
 Remove-Item $sandbox -Recurse -Force -ErrorAction SilentlyContinue
 ''
 if ($fallos -eq 0) { "RESULTADO: TODO OK" } else { "RESULTADO: $fallos FALLO(S)" }

@@ -148,7 +148,13 @@ function Install-ManualPackage {
         [string]$ManualNote = "",
 
         [Parameter()]
-        [string]$SilentArgs = ""
+        [string]$SilentArgs = "",
+
+        # Huella SHA256 esperada del fichero descargado (campo opcional "sha256" de
+        # software.json). Para instaladores SIN firma (p.ej. Open-Shell): si no
+        # coincide, NO se ejecuta.
+        [Parameter()]
+        [string]$Sha256 = ""
     )
 
     Write-Log -Message "Descarga directa: $PackageName" -Level Info
@@ -199,6 +205,18 @@ function Install-ManualPackage {
         if (-not (Test-Path $downloadPath) -or (Get-Item $downloadPath).Length -eq 0) {
             Write-Log -Message "El archivo descargado esta vacio o no existe" -Level Error
             throw "Descarga fallida: archivo vacio"
+        }
+
+        if ($Sha256) {
+            $huella = (Get-FileHash -LiteralPath $downloadPath -Algorithm SHA256).Hash
+            if ($huella -ne $Sha256.Trim().ToUpper()) {
+                # No se borra: se aparta con otro nombre para poder examinarlo
+                $apartado = "$downloadPath.RECHAZADO"
+                Move-Item -LiteralPath $downloadPath -Destination $apartado -Force -ErrorAction SilentlyContinue
+                Write-Log -Message "${PackageName}: HUELLA NO COINCIDE (esperada $Sha256, descargada $huella). NO se ejecuta. Fichero apartado en $apartado" -Level Error
+                return 'Failed'
+            }
+            Write-Log -Message "${PackageName}: huella SHA256 verificada" -Level Info
         }
 
         # Detectar nombre real desde Content-Disposition (ej: API Adoptium devuelve el .msi real)
@@ -497,7 +515,10 @@ function Install-SoftwarePackage {
         [string]$SilentArgs = "",
 
         [Parameter()]
-        [string[]]$Detect = @()
+        [string[]]$Detect = @(),
+
+        [Parameter()]
+        [string]$Sha256 = ""
     )
 
     Write-Log -Message "Procesando: $PackageName ($PackageId)" -Level Info
@@ -510,7 +531,7 @@ function Install-SoftwarePackage {
 
     # Si el paquete no esta en winget, usar descarga manual
     if ($WingetUnavailable -and $ManualUrl) {
-        return Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote -SilentArgs $SilentArgs
+        return Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote -SilentArgs $SilentArgs -Sha256 $Sha256
     }
 
     # Obtener locale del sistema (ej: es-ES)
@@ -571,7 +592,7 @@ function Install-SoftwarePackage {
     # Fallback: si winget fallo y hay URL manual, intentar descarga directa
     if ($ManualUrl) {
         Write-Log -Message "winget fallo para $PackageName. Intentando descarga directa..." -Level Warning
-        $manualResult = Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote -SilentArgs $SilentArgs
+        $manualResult = Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote -SilentArgs $SilentArgs -Sha256 $Sha256
         return $manualResult
     }
 
@@ -621,6 +642,9 @@ function Install-SoftwareList {
         }
         if ($pkg.detect) {
             $installParams.Detect = @($pkg.detect)
+        }
+        if ($pkg.sha256) {
+            $installParams.Sha256 = [string]$pkg.sha256
         }
         $status = Install-SoftwarePackage @installParams
 

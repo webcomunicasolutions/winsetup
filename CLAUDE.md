@@ -26,7 +26,8 @@ Manhattan (`~/proyectos/aprendizaje/proyecto_manhatan`) depende de:
 2. **`Test-SoftwareInstalled`** (Software.psm1, nombre y parametros `-PackageId`
    `-PackageName`, y el opcional `-Detect` desde 03/10/2026) y la estructura de
    **`config/<perfil>/software.json`** (campo opcional `detect`: patrones -like de
-   DisplayName que tambien cuentan como instalado). Los usa para ver que
+   DisplayName que tambien cuentan como instalado; campo opcional `sha256`: huella
+   del instalador de descarga directa, si no coincide NO se ejecuta). Los usa para ver que
    `recommended` faltan (por registro, winget desactivado).
 3. **Variables de entorno**: `WINSETUP_UNATTENDED=1`, `WINSETUP_PROFILE`, `WINSETUP_SOLO`,
    `WINSETUP_USUARIO` (worker `instalar-paquete-winsetup.ps1`, via `setup.ps1`).
