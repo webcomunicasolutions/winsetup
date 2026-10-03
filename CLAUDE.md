@@ -47,6 +47,10 @@ Manhattan (`~/proyectos/aprendizaje/proyecto_manhatan`) depende de:
   winget (99ebc629...6313a), firma Oracle America valida (verificado 03/10/2026).
   Argumentos `INSTALL_SILENT=1 REBOOT=0 SPONSORS=0 WEB_ANALYTICS=0`: probados en real
   por Manhattan en doblea_chema_nuevo (exit 0, jre1.8.0_503 con javaws).
+- Open-Shell no firma sus binarios: va con `sha256`. Args `/qn ADDLOCAL=StartMenu /norestart`
+  probados en real con la 4.4.191 (CELIA, Doblea, Win11 26200, como SYSTEM: exit 0,
+  StartMenu.exe instalado; el menu en la sesion de la usuaria no se vio). La 4.4.198 del
+  catalogo principal NO esta probada en ningun equipo (03/10/2026).
 - Si algun dia WinSetup desinstala Temurin: su MSI (`msiexec /x {codigo} /qn`) BORRA la
   asociacion `.jar` aunque Oracle ya la tuviera. Reponer con `assoc .jar=jarfile`.
 
