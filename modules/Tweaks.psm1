@@ -36,6 +36,24 @@ $script:AllowedTweakCommands = @(
 # =============================================================================
 $script:UserTarget = $null   # @{ Account; Sid; Root; RegRoot; LoadedByUs; HiveName }
 
+# Lo pone Apply-RegistryTweak cuando una clave se rechaza con ACCESO DENEGADO por
+# los dos caminos (PowerShell y reg.exe) siendo administrador: no es el metodo ni
+# los permisos de la clave, es un filtro de registro (antivirus tipo Norton, o
+# Windows). Visto en Win11 25H2 (build 26200, LUISA 03/10/2026) con Widgets y
+# Noticias: 0x80070005 en Dsh y Windows Feeds. El texto en espanol de .NET dice
+# "operacion no valida", que despista: el HResult es el que manda.
+$script:LastTweakBlocked = $false
+$script:BlockedSuffix = ' [BLOQUEADO por Windows/antivirus: acceso denegado siendo admin. Quitar a mano]'
+
+function Test-AccessDeniedError {
+    param($Exception)
+    for ($e = $Exception; $e; $e = $e.InnerException) {
+        if ($e -is [UnauthorizedAccessException] -or $e -is [System.Security.SecurityException]) { return $true }
+        if ($e.HResult -eq -2147024891) { return $true }   # 0x80070005
+    }
+    return $false
+}
+
 function Test-RunningAsSystem {
     [CmdletBinding()]
     [OutputType([bool])]
@@ -391,6 +409,7 @@ function Apply-RegistryTweak {
         $allOk = $true
         $applied = 0
         $omitted = 0
+        $script:LastTweakBlocked = $false
 
         foreach ($original in $RegistryEntries) {
             $realPath = Resolve-TweakRegistryPath -Path $original.path
@@ -407,7 +426,9 @@ function Apply-RegistryTweak {
 
                 # Crear la key si no existe
                 if (-not (Test-Path -LiteralPath $entry.path)) {
-                    New-Item -Path $entry.path -Force | Out-Null
+                    # -ErrorAction Stop: sin el, un acceso denegado no cortaba, se
+                    # registraba "creada" y el error que llegaba era "no existe"
+                    New-Item -Path $entry.path -Force -ErrorAction Stop | Out-Null
                     Write-Log -Message "Clave de registro creada: $($entry.path)" -Level Info
                 }
 
@@ -429,7 +450,8 @@ function Apply-RegistryTweak {
             }
             catch {
                 # Fallback: intentar con reg.exe cuando PowerShell falla (ej: claves protegidas en Win11)
-                Write-Log -Message "  Set-ItemProperty fallo, intentando con reg.exe..." -Level Warning
+                $psDenegado = Test-AccessDeniedError -Exception $_.Exception
+                Write-Log -Message "  Set-ItemProperty fallo [$($_.Exception.GetType().Name) 0x$('{0:X8}' -f $_.Exception.HResult)], intentando con reg.exe..." -Level Warning
                 try {
                     $regPath = ConvertTo-RegExePath -Path $entry.path
                     $regType = switch ($entry.type) {
@@ -450,7 +472,13 @@ function Apply-RegistryTweak {
                         $applied++
                     }
                     else {
-                        Write-Log -Message "  Error reg.exe: $regOutput" -Level Error
+                        if ($psDenegado) {
+                            $script:LastTweakBlocked = $true
+                            Write-Log -Message "  BLOQUEADO: acceso denegado por PowerShell Y por reg.exe en $($entry.path)\$($entry.name). Lo impide un filtro de registro (antivirus o Windows), no el script. reg.exe: $regOutput" -Level Error
+                        }
+                        else {
+                            Write-Log -Message "  Error reg.exe: $regOutput" -Level Error
+                        }
                         $allOk = $false
                     }
                 }
@@ -686,11 +714,12 @@ function Start-TweaksConfiguration {
             $tweak = $selectedTweaks[$i]
             Show-Progress -Activity "Aplicando tweaks" -Status $tweak.name -Current ($i + 1) -Total $selectedTweaks.Count
 
+            $script:LastTweakBlocked = $false
             $result = Apply-TweakItem -Tweak $tweak
 
             switch ($result) {
                 'Success' { $results.Success += $tweak.name }
-                'Failed'  { $results.Failed += $tweak.name }
+                'Failed'  { $results.Failed += $(if ($script:LastTweakBlocked) { $tweak.name + $script:BlockedSuffix } else { $tweak.name }) }
                 'Skipped' { $results.Skipped += $tweak.name }
             }
         }
@@ -756,11 +785,12 @@ function Apply-RecommendedTweaks {
             $tweak = $recommendedTweaks[$i]
             Show-Progress -Activity "Aplicando tweaks recomendados" -Status $tweak.name -Current ($i + 1) -Total $recommendedTweaks.Count
 
+            $script:LastTweakBlocked = $false
             $result = Apply-TweakItem -Tweak $tweak
 
             switch ($result) {
                 'Success' { $results.Success += $tweak.name }
-                'Failed'  { $results.Failed += $tweak.name }
+                'Failed'  { $results.Failed += $(if ($script:LastTweakBlocked) { $tweak.name + $script:BlockedSuffix } else { $tweak.name }) }
                 'Skipped' { $results.Skipped += $tweak.name }
             }
         }

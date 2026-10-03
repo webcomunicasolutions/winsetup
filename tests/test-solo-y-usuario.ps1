@@ -117,6 +117,28 @@ Get-ChildItem "$base\config" -Directory | Where-Object { $_.Name -ne '_template'
     if (-not $faltan -and $newsp) { Ok "$origen : 3 iconos, en NewStartPanel" } else { Bad "$origen : faltan [$($faltan -join ',')] NewStartPanel=$newsp" }
 }
 
+'== 11) Acceso denegado por los dos caminos -> BLOQUEADO en el resumen (caso LUISA 25H2)'
+# Sin admin, HKLM\SOFTWARE\Policies da 0x80070005 en PowerShell Y en reg.exe:
+# el mismo sintoma que el filtro de registro de Win11 25H2. Con admin se salta
+# (escribiria de verdad en HKLM).
+if (Test-Admin) {
+    '  (se omite: ejecutar SIN administrador para provocar el acceso denegado)'
+}
+else {
+    $clave = 'HKLM:\SOFTWARE\Policies\WinSetupPruebaBloqueo'
+    $json = Join-Path $env:TEMP 'winsetup_prueba_bloqueo.json'
+    @{ categories = @(@{ name = 'Prueba'; tweaks = @(@{ name = 'Tweak de prueba'; recommended = $true;
+        registry = @(@{ path = $clave; name = 'Valor'; value = 0; type = 'DWord' }) }) }) } |
+        ConvertTo-Json -Depth 10 | Set-Content -Path $json -Encoding UTF8
+    $res = Apply-RecommendedTweaks -ConfigPath $json
+    $fallo = @($res.Failed)
+    if ($fallo.Count -eq 1 -and $fallo[0] -cmatch '\[BLOQUEADO por') { Ok "resumen: $($fallo[0])" } else { Bad "resumen Failed = [$($fallo -join ' | ')]" }
+    if (-not (Test-Path $clave)) { Ok 'no se ha creado nada en HKLM' } else { Bad "se creo $clave" }
+    $falsoPositivo = & $tw { Test-AccessDeniedError -Exception ([InvalidOperationException]::new('x')) }
+    if ($falsoPositivo -eq $false) { Ok 'otro tipo de error NO se marca como bloqueado' } else { Bad 'InvalidOperation se tomo como bloqueo' }
+    Move-Item $json "$json.usado" -Force   # se queda en %TEMP%, no se borra
+}
+
 Remove-Item $sandbox -Recurse -Force -ErrorAction SilentlyContinue
 ''
 if ($fallos -eq 0) { "RESULTADO: TODO OK" } else { "RESULTADO: $fallos FALLO(S)" }
