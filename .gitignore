@@ -3,3 +3,6 @@ backups/*.reg
 backups/*.json
 !logs/.gitkeep
 !backups/.gitkeep
+
+# Volcado de una ejecucion de prueba en Win11 (11/02/2026), se queda solo en local
+windows 11 2.txt
