@@ -42,6 +42,12 @@ Manhattan (`~/proyectos/aprendizaje/proyecto_manhatan`) depende de:
   Temurin + OpenWebStart). Motivo: GEScontrat@ (Junta, JNLP) necesita `javaws`, que
   Temurin no trae; GEScontrat@ y SILTRA probados en Doblea con 8u503 x86. No reabrir.
   `detect` solo acepta el x86 ("Java 8 Update NNN" sin "(64-bit)").
+  Instalador: el offline x86 de java.com (BundleId 253607) = mismo SHA256 que el de
+  winget (99ebc629...6313a), firma Oracle America valida (verificado 03/10/2026).
+  Argumentos `INSTALL_SILENT=1 REBOOT=0 SPONSORS=0 WEB_ANALYTICS=0`: probados en real
+  por Manhattan en doblea_chema_nuevo (exit 0, jre1.8.0_503 con javaws).
+- Si algun dia WinSetup desinstala Temurin: su MSI (`msiexec /x {codigo} /qn`) BORRA la
+  asociacion `.jar` aunque Oracle ya la tuviera. Reponer con `assoc .jar=jarfile`.
 
 - Win11 25H2 (LUISA, build 26200): Widgets y Noticias (HKLM\Policies Dsh / Windows Feeds)
   dan **acceso denegado siendo admin** por PowerShell Y reg.exe = filtro de registro
