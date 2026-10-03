@@ -54,6 +54,14 @@ Los tweaks de `HKCU` van a la cuenta que ejecuta el script, no a la persona que 
 
 Si `-Usuario` no existe o no tiene perfil, el script se para sin aplicar nada.
 
+### Codigo de salida (lo propaga setup.ps1)
+
+| Codigo | Significado |
+|---|---|
+| 0 | Terminado sin fallos |
+| 1 | No llego a empezar: parametro con errata, usuario o perfil inexistente, fallo de descarga |
+| 2 | Terminado CON AVISOS: algun programa o tweak fallo o salio BLOQUEADO (detalle en el log) |
+
 ## Estructura del Proyecto
 
 ```

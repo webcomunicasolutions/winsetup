@@ -16,6 +16,9 @@
 #   WINSETUP_SOLO=tweaks | software | bloatware | "tweaks,bloatware"
 #   WINSETUP_USUARIO=<cuenta>   (OBLIGATORIO para tweaks de usuario como SYSTEM)
 # Los parametros mandan sobre las variables de entorno.
+#
+# Codigo de salida: 0 = sin fallos | 1 = no llego a empezar | 2 = terminado CON
+# AVISOS (algun programa o tweak fallo o salio BLOQUEADO; detalle en el log)
 # =============================================================================
 
 param(
@@ -26,6 +29,8 @@ param(
     [switch]$SoloBloatware, # Solo quitar el bloatware recomendado
     [string]$Usuario        # Cuenta que recibe los tweaks de usuario (HKCU)
 )
+
+$script:HuboAvisos = $false
 
 # --- Determinar raiz del script ---
 $ScriptRoot = $PSScriptRoot
@@ -292,6 +297,8 @@ function Invoke-PasosRecomendados {
         $combined.Skipped += @($r.Skipped)
     }
     Show-Summary -Results $combined
+    # Para el codigo de salida: algo fallo o salio BLOQUEADO
+    if (@($combined.Failed).Count -gt 0) { $script:HuboAvisos = $true }
     Write-Log -Message "Configuracion finalizada ($($Pasos -join ', '))" -Level Success
 }
 
@@ -407,6 +414,14 @@ else {
 
 Write-Host ""
 Wait-UserAck -Message "Presione Enter para cerrar esta ventana"
+# Codigo de salida (lo lee Manhattan a traves de setup.ps1):
+#   0 = terminado sin fallos
+#   1 = no llego a empezar (validacion, usuario, perfil...) -> los exit 1 de arriba
+#   2 = terminado CON AVISOS: algun programa o tweak fallo o salio BLOQUEADO (ver log)
 # exit explicito: sin el, $LASTEXITCODE se queda con el del ultimo programa externo
 # (reg.exe, winget...) y setup.ps1 propagaria un fallo que no es del script.
+if ($script:HuboAvisos) {
+    Write-Log -Message "Terminado CON AVISOS (codigo de salida 2): revise los fallidos del resumen" -Level Warning
+    exit 2
+}
 exit 0

@@ -165,6 +165,27 @@ foreach ($c in $casos) {
 }
 Remove-Item Env:\WINSETUP_UNATTENDED
 
+'== 13) main.ps1 sale con 2 si algo fallo o salio BLOQUEADO, 0 si no'
+# El main.ps1 real necesita admin: se extrae Invoke-PasosRecomendados con el
+# parser y se ejecuta con los pasos de verdad simulados.
+$e = $null; $t = $null
+$astMain = [System.Management.Automation.Language.Parser]::ParseFile("$base\main.ps1", [ref]$t, [ref]$e)
+$fn = $astMain.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Invoke-PasosRecomendados' }, $true)
+. ([scriptblock]::Create($fn.Extent.Text))
+function Write-Header { }  function Write-Section { }  function Show-Summary { }
+$settings = $null; $Profile = $null; $configPaths = @{ Tweaks = 'x' }
+foreach ($c in @(@{ falla = @('Ocultar Widgets [BLOQUEADO por Windows/antivirus]'); esperado = $true },
+                 @{ falla = @(); esperado = $false })) {
+    $script:HuboAvisos = $false
+    $simFalla = $c.falla
+    function Apply-RecommendedTweaks { param($ConfigPath) @{ Success = @('a'); Failed = $simFalla; Skipped = @() } }
+    function New-FullBackup { param($BackupDir) }
+    Invoke-PasosRecomendados -Pasos @('tweaks') *> $null
+    if ($script:HuboAvisos -eq $c.esperado) { Ok "fallidos=$($simFalla.Count) -> HuboAvisos=$($script:HuboAvisos)" } else { Bad "fallidos=$($simFalla.Count) -> HuboAvisos=$($script:HuboAvisos)" }
+}
+$finMain = (Get-Content "$base\main.ps1" -Raw)
+if ($finMain -match '(?s)if \(\$script:HuboAvisos\) \{.*?exit 2\s*\}\s*exit 0\s*$') { Ok 'main.ps1 termina con: HuboAvisos -> exit 2, si no exit 0' } else { Bad 'el final de main.ps1 no es el esperado' }
+
 Remove-Item $sandbox -Recurse -Force -ErrorAction SilentlyContinue
 ''
 if ($fallos -eq 0) { "RESULTADO: TODO OK" } else { "RESULTADO: $fallos FALLO(S)" }
