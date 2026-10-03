@@ -385,6 +385,25 @@ finally {
 }
 
 # --- Despedida ---
+# Recordatorio de AnyDesk. La contraseña de acceso desatendido NO va en el
+# script a proposito: el repo es publico y es la misma en todos los equipos.
+function Show-RecordatorioAnyDesk {
+    param([string[]]$Rutas = @(
+        "${env:ProgramFiles(x86)}\AnyDesk\AnyDesk.exe",
+        "$env:ProgramFiles\AnyDesk\AnyDesk.exe"))
+    $exe = $Rutas | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+    if (-not $exe) { return $false }
+    Write-Log -Message "RECORDATORIO: AnyDesk instalado ($exe). Falta poner la contraseña de acceso desatendido" -Level Warning
+    Write-Host ""
+    Write-Host "  ============================================" -ForegroundColor Yellow
+    Write-Host "    RECUERDA: AnyDesk esta instalado." -ForegroundColor Yellow
+    Write-Host "    Ponle la contraseña de ACCESO DESATENDIDO" -ForegroundColor Yellow
+    Write-Host "    (AnyDesk > Ajustes > Seguridad)." -ForegroundColor Yellow
+    Write-Host "  ============================================" -ForegroundColor Yellow
+    return $true
+}
+Show-RecordatorioAnyDesk | Out-Null
+
 Write-Host ""
 Write-Host ""
 Write-Header -Title "PROCESO COMPLETADO"

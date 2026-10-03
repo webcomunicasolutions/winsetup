@@ -186,6 +186,17 @@ foreach ($c in @(@{ falla = @('Ocultar Widgets [BLOQUEADO por Windows/antivirus]
 $finMain = (Get-Content "$base\main.ps1" -Raw)
 if ($finMain -match '(?s)if \(\$script:HuboAvisos\) \{.*?exit 2\s*\}\s*exit 0\s*$') { Ok 'main.ps1 termina con: HuboAvisos -> exit 2, si no exit 0' } else { Bad 'el final de main.ps1 no es el esperado' }
 
+'== 14) Recordatorio de la contraseña de AnyDesk'
+$fn = $astMain.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Show-RecordatorioAnyDesk' }, $true)
+. ([scriptblock]::Create($fn.Extent.Text))
+$falso = Join-Path $env:TEMP 'winsetup_prueba_anydesk.exe'
+Set-Content $falso 'x'
+$si = Show-RecordatorioAnyDesk -Rutas @('C:\no\existe\AnyDesk.exe', $falso) 6> $null
+$no = Show-RecordatorioAnyDesk -Rutas @('C:\no\existe\AnyDesk.exe') 6> $null
+if ($si -eq $true -and $no -eq $false) { Ok 'avisa si AnyDesk esta, calla si no' } else { Bad "con AnyDesk=$si sin AnyDesk=$no" }
+Move-Item $falso "$falso.usado" -Force
+if ((Get-Content "$base\main.ps1" -Raw) -match '(?m)^Show-RecordatorioAnyDesk') { Ok 'main.ps1 llama al recordatorio' } else { Bad 'main.ps1 no llama al recordatorio' }
+
 Remove-Item $sandbox -Recurse -Force -ErrorAction SilentlyContinue
 ''
 if ($fallos -eq 0) { "RESULTADO: TODO OK" } else { "RESULTADO: $fallos FALLO(S)" }
