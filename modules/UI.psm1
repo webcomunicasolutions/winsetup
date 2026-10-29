@@ -239,6 +239,14 @@ function Show-CheckboxList {
         [string]$Title = "SELECCION DE ELEMENTOS"
     )
 
+    # Sin nadie delante (SYSTEM, WinRM, SSH, WINSETUP_UNATTENDED=1) el menu se queda
+    # esperando una tecla para siempre: se devuelven los recomendados y queda en el log
+    if (-not (Test-InteractiveSession)) {
+        $porDefecto = @($Items | Where-Object { $_.recommended -eq $true })
+        Write-Log -Message "Sesion no interactiva: '$Title' -> $($porDefecto.Count) de $($Items.Count) recomendados (por defecto)" -Level Info
+        return ,$porDefecto
+    }
+
     # Inicializar estado de seleccion: recomendados inician marcados
     $selected = [bool[]]::new($Items.Count)
     for ($i = 0; $i -lt $Items.Count; $i++) {
