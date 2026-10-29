@@ -529,9 +529,14 @@ function Install-SoftwarePackage {
         return 'Skipped'
     }
 
-    # Si el paquete no esta en winget, usar descarga manual
-    if ($WingetUnavailable -and $ManualUrl) {
+    # Si el paquete no esta en winget, o winget no existe en el equipo, usar descarga manual
+    $sinWinget = -not (Get-Command winget -ErrorAction SilentlyContinue)
+    if (($WingetUnavailable -or $sinWinget) -and $ManualUrl) {
         return Install-ManualPackage -PackageName $PackageName -ManualUrl $ManualUrl -ManualNote $ManualNote -SilentArgs $SilentArgs -Sha256 $Sha256
+    }
+    if ($sinWinget) {
+        Write-Log -Message "${PackageName}: winget no disponible y el paquete no tiene descarga directa (manualUrl)" -Level Error
+        return 'Failed'
     }
 
     # Obtener locale del sistema (ej: es-ES)

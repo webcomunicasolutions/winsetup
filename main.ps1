@@ -250,22 +250,19 @@ function Invoke-PasosRecomendados {
     if ($Pasos -contains 'software') {
         Write-Section -Title "Paso $n/$($total): Instalando software"
         $n++
-        if ($env.HasWinget) {
-            try {
-                $r = Install-RecommendedSoftware -ConfigPath $configPaths.Software
-                $resultados += ,$(if ($r) { $r } else { $vacio })
-            }
-            catch { Write-Log -Message "Error en instalacion de software: $_" -Level Error }
-        }
-        else {
+        if (-not $env.HasWinget) {
+            # Sin winget (Windows Server como SYSTEM: 0x80073CF9) se sigue: los paquetes con
+            # manualUrl se instalan por descarga directa; los que no la tengan saldran como fallidos.
             Write-Host ""
-            Write-Host "  !! WINGET NO DISPONIBLE !!" -ForegroundColor Red
-            Write-Host "  No se puede instalar software automaticamente." -ForegroundColor Yellow
-            Write-Host "  Instale 'App Installer' desde Microsoft Store y vuelva a ejecutar." -ForegroundColor Yellow
+            Write-Host "  !! WINGET NO DISPONIBLE: solo se instalan los paquetes con descarga directa (manualUrl) !!" -ForegroundColor Yellow
             Write-Host ""
-            Write-Log -Message "winget no disponible, omitiendo instalacion de software" -Level Warning
-            Start-Sleep -Seconds 3
+            Write-Log -Message "winget no disponible: se instalan por descarga directa los paquetes con manualUrl" -Level Warning
         }
+        try {
+            $r = Install-RecommendedSoftware -ConfigPath $configPaths.Software
+            $resultados += ,$(if ($r) { $r } else { $vacio })
+        }
+        catch { Write-Log -Message "Error en instalacion de software: $_" -Level Error }
     }
 
     if ($Pasos -contains 'tweaks') {
