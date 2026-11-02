@@ -55,7 +55,13 @@
     { "id": "MicrosoftCorporationII.MicrosoftFamily", "name": "Microsoft Family Safety", "recommended": true },
     { "id": "DropboxInc.Dropbox", "name": "Dropbox (preinstalado)", "recommended": true },
     { "id": "Dropbox.Dropbox", "name": "Dropbox", "recommended": true },
-    { "id": "Microsoft.549981C3F5F10", "name": "Cortana", "recommended": true }
+    { "id": "Microsoft.549981C3F5F10", "name": "Cortana", "recommended": true },
+    { "id": "Microsoft.OutlookForWindows", "name": "Outlook (nuevo)", "recommended": true },
+    { "id": "Microsoft.Office.OneNote", "name": "OneNote", "recommended": true },
+    { "id": "Microsoft.BingSearch", "name": "Bing Search", "recommended": true },
+    { "id": "Microsoft.Wallet", "name": "Microsoft Wallet", "recommended": true },
+    { "id": "Microsoft.Windows.DevHome", "name": "Dev Home", "recommended": true },
+    { "id": "Microsoft.Copilot", "name": "Copilot (app)", "recommended": true }
   ],
   "onedrive": {
     "name": "Microsoft OneDrive",

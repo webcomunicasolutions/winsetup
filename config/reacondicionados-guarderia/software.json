@@ -5,17 +5,17 @@
       "description": "Software basico para portatiles reacondicionados de guarderia",
       "packages": [
         { "id": "Google.Chrome", "name": "Google Chrome", "description": "Navegador web principal", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi", "manualNote": "Instalador MSI enterprise directo de Google" },
-        { "id": "RARLab.WinRAR", "name": "WinRAR", "description": "Compresor de archivos", "recommended": true },
+        { "id": "RARLab.WinRAR", "name": "WinRAR", "description": "Compresor de archivos", "recommended": true, "manualUrl": "https://www.rarlab.com/rar/winrar-x64-723es.exe", "manualNote": "URL VERSIONADA (7.23 es). Como SYSTEM winget no va (guarderia_portatil1, 02/11/2026): sin esto WinRAR falla. Si da 404, sacar la actual de rarlab.com/download.htm. Firma win.rar GmbH", "silentArgs": "/S" },
         { "id": "Adobe.Acrobat.Reader.64-bit", "detect": ["Adobe Acrobat*", "Adobe Reader*"], "name": "Adobe Reader", "description": "Lector de PDF", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2300820555/AcroRdrDCx642300820555_es_ES.exe", "manualNote": "Instalador offline en espanol", "silentArgs": "/sAll /msi /norestart ALLUSERS=1 EULA_ACCEPT=YES" },
         { "id": "AnyDeskSoftwareGmbH.AnyDesk", "name": "AnyDesk", "description": "Acceso remoto", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://download.anydesk.com/AnyDesk.exe", "manualNote": "Descarga directa - siempre ultima version", "silentArgs": "--install \"C:\\Program Files (x86)\\AnyDesk\" --silent --start-with-win --create-shortcuts --create-desktop-icon" },
-        { "id": "Open-Shell.Open-Shell-Menu", "name": "Open-Shell", "description": "Menu de inicio clasico para Windows", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://github.com/Open-Shell/Open-Shell-Menu/releases/download/v4.4.191/OpenShellSetup_4_4_191.exe", "manualNote": "Instalador desde GitHub releases", "sha256": "9e9c32badb52444ca8a8726aef7c220ff48de8c7916cdfdca4dff6e009ac1f0c", "silentArgs": "/qn /norestart" }
+        { "id": "Open-Shell.Open-Shell-Menu", "name": "Open-Shell", "description": "Menu de inicio clasico para Windows", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://github.com/Open-Shell/Open-Shell-Menu/releases/download/v4.4.198/OpenShellSetup_4_4_198.exe", "manualNote": "Instalador desde GitHub releases (4.4.198 probado en guarderia_portatil1 02/11/2026: exit 0)", "sha256": "a4d2d4459de55b5e962ba2a14f7bb794170511649138173dfa72949837b48c3f", "silentArgs": "/qn ADDLOCAL=StartMenu /norestart" }
       ]
     },
     {
       "name": "Ofimatica",
       "description": "Suite de oficina gratuita",
       "packages": [
-        { "id": "TheDocumentFoundation.LibreOffice", "name": "LibreOffice", "description": "Suite ofimatica gratuita y completa", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://download.documentfoundation.org/libreoffice/stable/26.2.3/win/x86_64/LibreOffice_26.2.3_Win_x86-64.msi", "manualNote": "MSI oficial 64-bit en multi-idioma (incluye espanol)", "silentArgs": "/qn /norestart ALLUSERS=1" }
+        { "id": "TheDocumentFoundation.LibreOffice", "name": "LibreOffice", "description": "Suite ofimatica gratuita y completa", "recommended": true, "wingetUnavailable": true, "manualUrl": "https://downloadarchive.documentfoundation.org/libreoffice/old/26.8.2.2/win/x86_64/LibreOffice_26.8.2.2_Win_x86-64.msi", "manualNote": "MSI oficial 64-bit multi-idioma desde el ARCHIVO permanente de TDF (/stable/ solo guarda 2 versiones: la 26.2.3 dio 404 el 02/11/2026). Firma The Document Foundation", "sha256": "ff4b911403b67ee9e6249f820f9782c44bb32c94fdaa45b0da53a8e419e5307a", "silentArgs": "/qn /norestart ALLUSERS=1 ISCHECKFORPRODUCTUPDATES=0 QUICKSTART=0" }
       ]
     }
   ]
